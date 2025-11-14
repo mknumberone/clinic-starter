@@ -6,6 +6,85 @@ import { UpdatePatientDto } from './dto/patient.dto';
 export class PatientsService {
   constructor(private prisma: PrismaService) {}
 
+  // Get all patients with pagination and filters (Admin/Doctor)
+  async getPatients(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    gender?: string;
+    minAge?: number;
+    maxAge?: number;
+  }) {
+    const page = Number(params.page) || 1;
+    const limit = Number(params.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    // Search by name or phone
+    if (params.search) {
+      where.user = {
+        OR: [
+          { full_name: { contains: params.search, mode: 'insensitive' } },
+          { phone: { contains: params.search } },
+        ],
+      };
+    }
+
+    // Filter by gender
+    if (params.gender) {
+      where.gender = params.gender;
+    }
+
+    // Filter by age range (calculate date_of_birth range)
+    if (params.minAge !== undefined || params.maxAge !== undefined) {
+      const today = new Date();
+      where.date_of_birth = {};
+
+      if (params.maxAge !== undefined) {
+        const minDate = new Date(today.getFullYear() - params.maxAge - 1, today.getMonth(), today.getDate());
+        where.date_of_birth.gte = minDate;
+      }
+
+      if (params.minAge !== undefined) {
+        const maxDate = new Date(today.getFullYear() - params.minAge, today.getMonth(), today.getDate());
+        where.date_of_birth.lte = maxDate;
+      }
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.patient.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              phone: true,
+              full_name: true,
+            },
+          },
+        },
+        skip,
+        take: limit,
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+      this.prisma.patient.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   // Get patient profile
   async getProfile(patientId: string) {
     const patient = await this.prisma.patient.findUnique({
@@ -26,7 +105,80 @@ export class PatientsService {
       throw new NotFoundException('Không tìm thấy hồ sơ bệnh nhân');
     }
 
-    return patient;
+    // Get appointments
+    const appointments = await this.prisma.appointment.findMany({
+      where: { patient_id: patientId },
+      include: {
+        doctor: {
+          include: {
+            user: {
+              select: {
+                full_name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        room: true,
+      },
+      orderBy: {
+        start_time: 'desc',
+      },
+      take: 20,
+    });
+
+    // Get prescriptions
+    const prescriptions = await this.prisma.prescription.findMany({
+      where: { patient_id: patientId },
+      include: {
+        doctor: {
+          include: {
+            user: {
+              select: {
+                full_name: true,
+              },
+            },
+          },
+        },
+        items: {
+          include: {
+            medication: true,
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+      take: 10,
+    });
+
+    return {
+      ...patient,
+      appointments: appointments.map((apt) => ({
+        id: apt.id,
+        appointment_type: apt.appointment_type,
+        start_time: apt.start_time,
+        end_time: apt.end_time,
+        status: apt.status,
+        doctor: {
+          full_name: apt.doctor?.user.full_name || 'Chưa phân công',
+          title: apt.doctor?.title || '',
+        },
+      })),
+      prescriptions: prescriptions.map((presc) => ({
+        id: presc.id,
+        created_at: presc.created_at,
+        doctor: {
+          full_name: presc.doctor.user.full_name,
+        },
+        items: presc.items.map((item) => ({
+          name: item.name,
+          dosage: item.dosage,
+          frequency: item.frequency,
+          duration: item.duration,
+        })),
+      })),
+    };
   }
 
   // Update patient profile

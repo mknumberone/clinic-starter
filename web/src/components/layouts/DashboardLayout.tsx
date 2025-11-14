@@ -58,6 +58,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           onClick: () => navigate('/admin/doctors'),
         },
         {
+          key: 'specializations',
+          icon: <MedicineBoxOutlined />,
+          label: 'Chuyên khoa & Phòng',
+          onClick: () => navigate('/admin/specializations'),
+        },
+        {
           key: 'appointments',
           icon: <CalendarOutlined />,
           label: 'Lịch hẹn',
@@ -65,7 +71,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         },
         {
           key: 'prescriptions',
-          icon: <MedicineBoxOutlined />,
+          icon: <FileTextOutlined />,
           label: 'Đơn thuốc',
           onClick: () => navigate('/admin/prescriptions'),
         },

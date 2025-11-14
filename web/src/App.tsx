@@ -8,6 +8,11 @@ import UnauthorizedPage from './pages/UnauthorizedPage';
 import AdminDashboard from './pages/admin/Dashboard';
 import DoctorDashboard from './pages/doctor/Dashboard';
 import PatientDashboard from './pages/patient/Dashboard';
+import PatientList from './pages/admin/PatientList';
+import PatientDetail from './pages/admin/PatientDetail';
+import DoctorList from './pages/admin/DoctorList';
+import DoctorDetail from './pages/admin/DoctorDetail';
+import SpecializationAndRoom from './pages/admin/SpecializationAndRoom';
 import { useAuthStore } from './stores/authStore';
 import 'dayjs/locale/vi';
 
@@ -54,10 +59,73 @@ function App() {
             />
             
             <Route
+              path="/admin/patients"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}>
+                  <PatientList />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/patients/:id"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}>
+                  <PatientDetail />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/doctors"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <DoctorList />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/doctors/:id"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <DoctorDetail />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/specializations"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <SpecializationAndRoom />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
               path="/doctor/dashboard"
               element={
                 <ProtectedRoute allowedRoles={['DOCTOR']}>
                   <DoctorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/doctor/patients"
+              element={
+                <ProtectedRoute allowedRoles={['DOCTOR']}>
+                  <PatientList />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/doctor/patients/:id"
+              element={
+                <ProtectedRoute allowedRoles={['DOCTOR']}>
+                  <PatientDetail />
                 </ProtectedRoute>
               }
             />

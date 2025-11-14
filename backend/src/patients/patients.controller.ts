@@ -1,5 +1,5 @@
-import { Controller, Get, Put, Body, Param, UseGuards, Request, ValidationPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Put, Body, Param, UseGuards, Request, ValidationPipe, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { PatientsService } from './patients.service';
 import { UpdatePatientDto } from './dto/patient.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -10,6 +10,33 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @ApiBearerAuth('JWT-auth')
 export class PatientsController {
   constructor(private patientsService: PatientsService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Lấy danh sách bệnh nhân (Admin/Doctor)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'gender', required: false, enum: ['male', 'female', 'other'] })
+  @ApiQuery({ name: 'minAge', required: false, type: Number })
+  @ApiQuery({ name: 'maxAge', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Danh sách bệnh nhân' })
+  async getPatients(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('gender') gender?: string,
+    @Query('minAge') minAge?: string,
+    @Query('maxAge') maxAge?: string,
+  ) {
+    return this.patientsService.getPatients({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      search,
+      gender,
+      minAge: minAge ? Number(minAge) : undefined,
+      maxAge: maxAge ? Number(maxAge) : undefined,
+    });
+  }
 
   @Get(':id')
   @ApiOperation({ summary: 'Lấy thông tin hồ sơ bệnh nhân' })

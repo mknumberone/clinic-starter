@@ -17,27 +17,58 @@ export class DoctorsService {
 
   // ============= DOCTORS =============
   
-  async getAllDoctors() {
-    return this.prisma.doctor.findMany({
-      include: {
-        user: {
-          select: {
-            id: true,
-            full_name: true,
-            phone: true,
-            email: true,
+  async getAllDoctors(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    specialization?: string;
+  }) {
+    const page = params?.page || 1;
+    const limit = params?.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    // Search by name, code, or phone
+    if (params?.search) {
+      where.OR = [
+        { code: { contains: params.search, mode: 'insensitive' } },
+        { user: { full_name: { contains: params.search, mode: 'insensitive' } } },
+        { user: { phone: { contains: params.search } } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.doctor.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              full_name: true,
+              phone: true,
+              email: true,
+            },
           },
         },
-        shifts: {
-          include: {
-            room: true,
-          },
-          orderBy: {
-            start_time: 'asc',
-          },
+        skip,
+        take: limit,
+        orderBy: {
+          created_at: 'desc',
         },
+      }),
+      this.prisma.doctor.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-    });
+    };
   }
 
   async getDoctorById(id: string) {
@@ -71,7 +102,27 @@ export class DoctorsService {
       throw new NotFoundException('Không tìm thấy bác sĩ');
     }
 
-    return doctor;
+    // Get appointment stats
+    const [total, completed, upcoming] = await Promise.all([
+      this.prisma.appointment.count({ where: { doctor_assigned_id: id } }),
+      this.prisma.appointment.count({ where: { doctor_assigned_id: id, status: 'completed' } }),
+      this.prisma.appointment.count({ 
+        where: { 
+          doctor_assigned_id: id, 
+          status: { in: ['scheduled', 'confirmed'] },
+          start_time: { gte: new Date() }
+        } 
+      }),
+    ]);
+
+    return {
+      ...doctor,
+      appointmentStats: {
+        total,
+        completed,
+        upcoming,
+      },
+    };
   }
 
   async updateDoctor(id: string, dto: UpdateDoctorDto) {

@@ -35,9 +35,23 @@ export class DoctorsController {
 
   @Get()
   @ApiOperation({ summary: 'Lấy danh sách tất cả bác sĩ' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'specialization', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Danh sách bác sĩ' })
-  async getAllDoctors() {
-    return this.doctorsService.getAllDoctors();
+  async getAllDoctors(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('specialization') specialization?: string,
+  ) {
+    return this.doctorsService.getAllDoctors({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      search,
+      specialization,
+    });
   }
 
   @Get(':id')
