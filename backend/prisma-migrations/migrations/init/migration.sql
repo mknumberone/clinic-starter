@@ -1,0 +1,1 @@
+-- Prisma migration placeholder. Run `npx prisma migrate dev` to generate schema.

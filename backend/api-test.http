@@ -1,0 +1,109 @@
+### Test Base URL
+@baseUrl = http://localhost:3000/api
+@phone = 0912345678
+@token = your_token_here
+
+###############################################
+# AUTHENTICATION APIs
+###############################################
+
+### 1. Send OTP
+POST {{baseUrl}}/auth/send-otp
+Content-Type: application/json
+
+{
+  "phone": "{{phone}}"
+}
+
+### 2. Register new patient
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "phone": "{{phone}}",
+  "full_name": "Nguyễn Văn A",
+  "email": "nguyenvana@gmail.com",
+  "otp": "123456"
+}
+
+### 3. Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "phone": "{{phone}}",
+  "otp": "123456"
+}
+
+### 4. Get current user profile
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+###############################################
+# PATIENT APIs
+###############################################
+
+### 5. Get patient profile
+GET {{baseUrl}}/patients/patient_id_here
+Authorization: Bearer {{token}}
+
+### 6. Update patient profile
+PUT {{baseUrl}}/patients/patient_id_here
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "full_name": "Nguyễn Văn A",
+  "date_of_birth": "1990-01-01",
+  "gender": "male",
+  "address": "123 Đường ABC, Quận 1, TP.HCM",
+  "emergency_contact": {
+    "name": "Nguyễn Thị B",
+    "phone": "0987654321",
+    "relationship": "Vợ"
+  },
+  "insurance": {
+    "provider": "BHYT",
+    "number": "DN1234567890"
+  }
+}
+
+### 7. Get patient appointments
+GET {{baseUrl}}/patients/patient_id_here/appointments
+Authorization: Bearer {{token}}
+
+### 8. Get patient prescriptions
+GET {{baseUrl}}/patients/patient_id_here/prescriptions
+Authorization: Bearer {{token}}
+
+### 9. Get patient invoices
+GET {{baseUrl}}/patients/patient_id_here/invoices
+Authorization: Bearer {{token}}
+
+###############################################
+# DASHBOARD APIs
+###############################################
+
+### 10. Get admin dashboard stats
+GET {{baseUrl}}/dashboard/admin/stats
+Authorization: Bearer {{token}}
+
+### 11. Get appointments by date range
+GET {{baseUrl}}/dashboard/admin/appointments?startDate=2025-01-01&endDate=2025-12-31
+Authorization: Bearer {{token}}
+
+### 12. Get revenue by date range
+GET {{baseUrl}}/dashboard/admin/revenue?startDate=2025-01-01&endDate=2025-12-31
+Authorization: Bearer {{token}}
+
+### 13. Get upcoming appointments
+GET {{baseUrl}}/dashboard/admin/upcoming-appointments?limit=10
+Authorization: Bearer {{token}}
+
+### 14. Get patient dashboard
+GET {{baseUrl}}/dashboard/patient
+Authorization: Bearer {{token}}
+
+### 15. Get doctor dashboard
+GET {{baseUrl}}/dashboard/doctor
+Authorization: Bearer {{token}}
