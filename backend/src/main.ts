@@ -28,6 +28,15 @@ async function bootstrap() {
     .setVersion('1.0')
     .addTag('auth', 'Authentication endpoints')
     .addTag('patients', 'Patient management endpoints')
+    .addTag('doctors', 'Doctor management endpoints')
+    .addTag('specializations', 'Specialization management endpoints')
+    .addTag('rooms', 'Room management endpoints')
+    .addTag('doctor-shifts', 'Doctor shift management endpoints')
+    .addTag('appointments', 'Appointment booking and management endpoints')
+    .addTag('prescriptions', 'Prescription management endpoints')
+    .addTag('medications', 'Medication catalog endpoints')
+    .addTag('invoices', 'Invoice management endpoints')
+    .addTag('payments', 'Payment processing endpoints')
     .addTag('dashboard', 'Dashboard and statistics endpoints')
     .addBearerAuth(
       {
