@@ -220,7 +220,7 @@ export default function PatientList() {
             pagination={{
               current: page,
               pageSize: limit,
-              total: data?.pagination.total || 0,
+              total: data?.pagination?.total || 0,
               showTotal: (total) => `Tổng ${total} bệnh nhân`,
               showSizeChanger: true,
               onChange: (newPage, newPageSize) => {

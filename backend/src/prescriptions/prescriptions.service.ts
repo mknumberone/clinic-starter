@@ -126,11 +126,32 @@ export class PrescriptionsService {
   }
 
   async getAllPrescriptions(filters?: {
+    userId?: string;
+    userRole?: string;
+    page?: number;
+    limit?: number;
     patientId?: string;
     doctorId?: string;
     appointmentId?: string;
   }) {
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 10;
+    const skip = (page - 1) * limit;
+
     const where: any = {};
+
+    // If DOCTOR role, only show their prescriptions
+    if (filters?.userRole === 'DOCTOR' && filters?.userId) {
+      const doctor = await this.prisma.doctor.findUnique({
+        where: { user_id: filters.userId },
+      });
+
+      if (doctor) {
+        where.doctor_id = doctor.id;
+      } else {
+        where.doctor_id = 'invalid';
+      }
+    }
 
     if (filters?.patientId) {
       where.patient_id = filters.patientId;
@@ -144,37 +165,54 @@ export class PrescriptionsService {
       where.appointment_id = filters.appointmentId;
     }
 
-    return this.prisma.prescription.findMany({
-      where,
-      include: {
-        items: {
-          include: {
-            medication: true,
+    const [data, total] = await Promise.all([
+      this.prisma.prescription.findMany({
+        where,
+        include: {
+          items: {
+            include: {
+              medication: true,
+            },
           },
-        },
-        doctor: {
-          include: {
-            user: {
-              select: {
-                full_name: true,
+          doctor: {
+            include: {
+              user: {
+                select: {
+                  full_name: true,
+                },
               },
             },
           },
-        },
-        patient: {
-          include: {
-            user: {
-              select: {
-                full_name: true,
+          patient: {
+            include: {
+              user: {
+                select: {
+                  full_name: true,
+                  phone: true,
+                },
               },
             },
           },
+          appointment: true,
         },
+        skip,
+        take: limit,
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+      this.prisma.prescription.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+    };
   }
 
   // ============= MEDICATIONS =============

@@ -21,6 +21,7 @@ export class PatientsController {
   @ApiQuery({ name: 'maxAge', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Danh sách bệnh nhân' })
   async getPatients(
+    @Request() req,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
@@ -29,6 +30,8 @@ export class PatientsController {
     @Query('maxAge') maxAge?: string,
   ) {
     return this.patientsService.getPatients({
+      userId: req.user.id,
+      userRole: req.user.role,
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       search,

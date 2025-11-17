@@ -38,6 +38,8 @@ export class AppointmentsController {
 
   @Get()
   @ApiOperation({ summary: 'Lấy danh sách cuộc hẹn với bộ lọc' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'status', required: false, description: 'Lọc theo trạng thái' })
   @ApiQuery({ name: 'patientId', required: false, description: 'Lọc theo bệnh nhân' })
   @ApiQuery({ name: 'doctorId', required: false, description: 'Lọc theo bác sĩ' })
@@ -46,6 +48,9 @@ export class AppointmentsController {
   @ApiQuery({ name: 'endDate', required: false, description: 'Đến ngày (YYYY-MM-DD)' })
   @ApiResponse({ status: 200, description: 'Danh sách cuộc hẹn' })
   async getAllAppointments(
+    @Request() req,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Query('status') status?: string,
     @Query('patientId') patientId?: string,
     @Query('doctorId') doctorId?: string,
@@ -54,6 +59,10 @@ export class AppointmentsController {
     @Query('endDate') endDate?: string,
   ) {
     return this.appointmentsService.getAllAppointments({
+      userId: req.user.id,
+      userRole: req.user.role,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
       status,
       patientId,
       doctorId,

@@ -13,6 +13,17 @@ import PatientDetail from './pages/admin/PatientDetail';
 import DoctorList from './pages/admin/DoctorList';
 import DoctorDetail from './pages/admin/DoctorDetail';
 import SpecializationAndRoom from './pages/admin/SpecializationAndRoom';
+import AppointmentList from './pages/admin/AppointmentList';
+import AppointmentCalendar from './pages/admin/AppointmentCalendar';
+import BookAppointment from './pages/admin/BookAppointment';
+import PrescriptionList from './pages/admin/PrescriptionList';
+import PrescriptionDetail from './pages/admin/PrescriptionDetail';
+import InvoiceList from './pages/admin/InvoiceList';
+import InvoiceDetail from './pages/admin/InvoiceDetail';
+import DoctorSchedule from './pages/doctor/DoctorSchedule';
+import AdminProfile from './pages/admin/AdminProfile';
+import DoctorProfile from './pages/doctor/DoctorProfile';
+import PatientProfile from './pages/patient/PatientProfile';
 import { useAuthStore } from './stores/authStore';
 import 'dayjs/locale/vi';
 
@@ -104,6 +115,78 @@ function App() {
             />
             
             <Route
+              path="/admin/appointments"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}>
+                  <AppointmentList />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/appointments/calendar"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}>
+                  <AppointmentCalendar />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/appointments/new"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <BookAppointment />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/prescriptions"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}>
+                  <PrescriptionList />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/prescriptions/:id"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}>
+                  <PrescriptionDetail />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/invoices"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <InvoiceList />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/invoices/:id"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <InvoiceDetail />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/admin/profile"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminProfile />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
               path="/doctor/dashboard"
               element={
                 <ProtectedRoute allowedRoles={['DOCTOR']}>
@@ -131,10 +214,82 @@ function App() {
             />
             
             <Route
+              path="/doctor/appointments"
+              element={
+                <ProtectedRoute allowedRoles={['DOCTOR']}>
+                  <AppointmentList />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/doctor/appointments/calendar"
+              element={
+                <ProtectedRoute allowedRoles={['DOCTOR']}>
+                  <AppointmentCalendar />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/doctor/appointments/:id"
+              element={
+                <ProtectedRoute allowedRoles={['DOCTOR']}>
+                  <PatientDetail />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/doctor/prescriptions"
+              element={
+                <ProtectedRoute allowedRoles={['DOCTOR']}>
+                  <PrescriptionList />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/doctor/prescriptions/:id"
+              element={
+                <ProtectedRoute allowedRoles={['DOCTOR']}>
+                  <PrescriptionDetail />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/doctor/schedule"
+              element={
+                <ProtectedRoute allowedRoles={['DOCTOR']}>
+                  <DoctorSchedule />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/doctor/profile"
+              element={
+                <ProtectedRoute allowedRoles={['DOCTOR']}>
+                  <DoctorProfile />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
               path="/patient/dashboard"
               element={
                 <ProtectedRoute allowedRoles={['PATIENT']}>
                   <PatientDashboard />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/patient/profile"
+              element={
+                <ProtectedRoute allowedRoles={['PATIENT']}>
+                  <PatientProfile />
                 </ProtectedRoute>
               }
             />

@@ -173,6 +173,10 @@ export class AppointmentsService {
   }
 
   async getAllAppointments(filters?: {
+    userId?: string;
+    userRole?: string;
+    page?: number;
+    limit?: number;
     status?: string;
     patientId?: string;
     doctorId?: string;
@@ -180,7 +184,25 @@ export class AppointmentsService {
     startDate?: Date;
     endDate?: Date;
   }) {
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 10;
+    const skip = (page - 1) * limit;
+
     const where: any = {};
+
+    // If DOCTOR role, only show their appointments
+    if (filters?.userRole === 'DOCTOR' && filters?.userId) {
+      const doctor = await this.prisma.doctor.findUnique({
+        where: { user_id: filters.userId },
+      });
+
+      if (doctor) {
+        where.doctor_assigned_id = doctor.id;
+      } else {
+        // If not found as doctor, return empty
+        where.doctor_assigned_id = 'invalid';
+      }
+    }
 
     if (filters?.status) {
       where.status = filters.status;
@@ -205,34 +227,49 @@ export class AppointmentsService {
       };
     }
 
-    return this.prisma.appointment.findMany({
-      where,
-      include: {
-        patient: {
-          include: {
-            user: {
-              select: {
-                full_name: true,
-                phone: true,
+    const [data, total] = await Promise.all([
+      this.prisma.appointment.findMany({
+        where,
+        include: {
+          patient: {
+            include: {
+              user: {
+                select: {
+                  full_name: true,
+                  phone: true,
+                },
               },
             },
           },
-        },
-        doctor: {
-          include: {
-            user: {
-              select: {
-                full_name: true,
+          doctor: {
+            include: {
+              user: {
+                select: {
+                  full_name: true,
+                },
               },
             },
           },
+          room: true,
         },
-        room: true,
+        skip,
+        take: limit,
+        orderBy: {
+          start_time: 'desc',
+        },
+      }),
+      this.prisma.appointment.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: {
-        start_time: 'desc',
-      },
-    });
+    };
   }
 
   async updateAppointment(id: string, dto: UpdateAppointmentDto, userId: string) {

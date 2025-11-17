@@ -7,7 +7,8 @@ import {
   Body, 
   Param, 
   Query,
-  UseGuards, 
+  UseGuards,
+  Request, 
   ValidationPipe 
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
@@ -40,16 +41,25 @@ export class PrescriptionsController {
 
   @Get()
   @ApiOperation({ summary: 'Lấy danh sách đơn thuốc' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'patientId', required: false, description: 'Lọc theo bệnh nhân' })
   @ApiQuery({ name: 'doctorId', required: false, description: 'Lọc theo bác sĩ' })
   @ApiQuery({ name: 'appointmentId', required: false, description: 'Lọc theo cuộc hẹn' })
   @ApiResponse({ status: 200, description: 'Danh sách đơn thuốc' })
   async getAllPrescriptions(
+    @Request() req,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Query('patientId') patientId?: string,
     @Query('doctorId') doctorId?: string,
     @Query('appointmentId') appointmentId?: string,
   ) {
     return this.prescriptionsService.getAllPrescriptions({
+      userId: req.user.id,
+      userRole: req.user.role,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
       patientId,
       doctorId,
       appointmentId,

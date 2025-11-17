@@ -8,6 +8,8 @@ export class PatientsService {
 
   // Get all patients with pagination and filters (Admin/Doctor)
   async getPatients(params: {
+    userId?: string;
+    userRole?: string;
     page?: number;
     limit?: number;
     search?: string;
@@ -20,6 +22,28 @@ export class PatientsService {
     const skip = (page - 1) * limit;
 
     const where: any = {};
+
+    // If DOCTOR role, only show patients who have appointments with this doctor
+    if (params.userRole === 'DOCTOR' && params.userId) {
+      const doctor = await this.prisma.doctor.findUnique({
+        where: { user_id: params.userId },
+      });
+
+      if (doctor) {
+        // Get patient IDs from appointments with this doctor
+        const appointments = await this.prisma.appointment.findMany({
+          where: { doctor_assigned_id: doctor.id },
+          select: { patient_id: true },
+          distinct: ['patient_id'],
+        });
+
+        const patientIds = appointments.map((apt) => apt.patient_id);
+        where.id = { in: patientIds };
+      } else {
+        // If not found as doctor, return empty
+        where.id = { in: [] };
+      }
+    }
 
     // Search by name or phone
     if (params.search) {

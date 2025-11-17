@@ -58,8 +58,10 @@ async function bootstrap() {
     customCss: '.swagger-ui .topbar { display: none }',
   });
   
-  await app.listen(3000);
+  // Listen on all network interfaces (0.0.0.0) để mobile có thể connect
+  await app.listen(3000, '0.0.0.0');
   console.log('🚀 Backend listening on http://localhost:3000/api');
+  console.log('🌐 Also accessible at http://192.168.11.27:3000/api (for mobile)');
   console.log('📚 Swagger docs available at http://localhost:3000/api/docs');
 }
 bootstrap();

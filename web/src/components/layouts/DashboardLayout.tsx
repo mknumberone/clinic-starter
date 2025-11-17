@@ -82,10 +82,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           onClick: () => navigate('/admin/invoices'),
         },
         {
-          key: 'settings',
-          icon: <SettingOutlined />,
-          label: 'Cài đặt',
-          onClick: () => navigate('/admin/settings'),
+          key: 'profile',
+          icon: <UserOutlined />,
+          label: 'Hồ sơ',
+          onClick: () => navigate('/admin/profile'),
         },
       ];
     }
@@ -116,6 +116,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           icon: <CalendarOutlined />,
           label: 'Lịch trực',
           onClick: () => navigate('/doctor/schedule'),
+        },
+        {
+          key: 'profile',
+          icon: <UserOutlined />,
+          label: 'Hồ sơ',
+          onClick: () => navigate('/doctor/profile'),
         },
       ];
     }

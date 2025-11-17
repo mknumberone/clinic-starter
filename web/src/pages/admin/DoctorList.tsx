@@ -187,7 +187,7 @@ export default function DoctorList() {
             pagination={{
               current: page,
               pageSize: limit,
-              total: data?.pagination.total || 0,
+              total: data?.pagination?.total || 0,
               showTotal: (total) => `Tổng ${total} bác sĩ`,
               showSizeChanger: true,
               onChange: (newPage, newPageSize) => {
