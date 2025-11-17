@@ -4,7 +4,7 @@ services:
     image: postgres:15
     environment:
       POSTGRES_USER: clinic
-      POSTGRES_PASSWORD: clinic
+      POSTGRES_PASSWORD: 43318.62Ka3
       POSTGRES_DB: clinic
     ports:
       - "5432:5432"
