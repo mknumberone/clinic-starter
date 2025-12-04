@@ -21,6 +21,7 @@ import {
   MailOutlined,
   HomeOutlined,
   CalendarOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { patientService } from '@/services/patient.service';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -99,6 +100,21 @@ export default function PatientDetail() {
         };
         return <Tag color={colorMap[status]}>{labelMap[status] || status}</Tag>;
       },
+    },
+
+    {
+      title: 'Thao tác',
+      key: 'action',
+      render: (_: any, record: any) => (
+        <Button
+          type="text"
+          icon={<EyeOutlined />}
+          className="text-blue-600"
+          onClick={() => navigate(`/medical-records/${record.id}`)}
+        >
+          Xem chi tiết
+        </Button>
+      ),
     },
   ];
 

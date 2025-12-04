@@ -1,27 +1,26 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+// File: src/doctors/doctors.service.ts
+
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { 
-  CreateDoctorDto, 
+import {
   UpdateDoctorDto,
   CreateSpecializationDto,
-  UpdateSpecializationDto,
-  CreateRoomDto,
-  UpdateRoomDto,
-  CreateDoctorShiftDto,
-  UpdateDoctorShiftDto
+  UpdateSpecializationDto
 } from './dto/doctor.dto';
+import { AppointmentStatus } from '@prisma/client';
 
 @Injectable()
 export class DoctorsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // ============= DOCTORS =============
-  
+
   async getAllDoctors(params?: {
     page?: number;
     limit?: number;
     search?: string;
-    specialization?: string;
+    specialization?: string; // ID của chuyên khoa
+    branchId?: string;
   }) {
     const page = params?.page || 1;
     const limit = params?.limit || 10;
@@ -29,13 +28,23 @@ export class DoctorsService {
 
     const where: any = {};
 
-    // Search by name, code, or phone
+    // 1. Tìm kiếm
     if (params?.search) {
       where.OR = [
         { code: { contains: params.search, mode: 'insensitive' } },
         { user: { full_name: { contains: params.search, mode: 'insensitive' } } },
         { user: { phone: { contains: params.search } } },
       ];
+    }
+
+    // 2. Lọc theo Chi nhánh
+    if (params?.branchId) {
+      where.user = { branch_id: params.branchId };
+    }
+
+    // 3. LỌC THEO CHUYÊN KHOA (Bổ sung mới)
+    if (params?.specialization) {
+      where.specialization_id = params.specialization;
     }
 
     const [data, total] = await Promise.all([
@@ -48,8 +57,11 @@ export class DoctorsService {
               full_name: true,
               phone: true,
               email: true,
+              avatar: true,
+              branch_id: true,
             },
           },
+          specialization: true, // Include để Frontend hiển thị tên khoa
         },
         skip,
         take: limit,
@@ -81,8 +93,10 @@ export class DoctorsService {
             full_name: true,
             phone: true,
             email: true,
+            branch_id: true, // Lấy branch để form edit hiển thị
           },
         },
+        specialization: true, // Lấy chuyên khoa
         shifts: {
           include: {
             room: {
@@ -94,6 +108,7 @@ export class DoctorsService {
           orderBy: {
             start_time: 'asc',
           },
+          take: 5,
         },
       },
     });
@@ -102,16 +117,18 @@ export class DoctorsService {
       throw new NotFoundException('Không tìm thấy bác sĩ');
     }
 
-    // Get appointment stats
+    // Thống kê nhanh
     const [total, completed, upcoming] = await Promise.all([
       this.prisma.appointment.count({ where: { doctor_assigned_id: id } }),
-      this.prisma.appointment.count({ where: { doctor_assigned_id: id, status: 'completed' } }),
-      this.prisma.appointment.count({ 
-        where: { 
-          doctor_assigned_id: id, 
-          status: { in: ['scheduled', 'confirmed'] },
+      this.prisma.appointment.count({
+        where: { doctor_assigned_id: id, status: AppointmentStatus.COMPLETED },
+      }),
+      this.prisma.appointment.count({
+        where: {
+          doctor_assigned_id: id,
+          status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED] },
           start_time: { gte: new Date() }
-        } 
+        }
       }),
     ]);
 
@@ -127,42 +144,61 @@ export class DoctorsService {
 
   async updateDoctor(id: string, dto: UpdateDoctorDto) {
     const doctor = await this.prisma.doctor.findUnique({ where: { id } });
-    if (!doctor) {
-      throw new NotFoundException('Không tìm thấy bác sĩ');
+    if (!doctor) throw new NotFoundException('Không tìm thấy bác sĩ');
+
+    if (dto.code && dto.code !== doctor.code) {
+      const existing = await this.prisma.doctor.findUnique({ where: { code: dto.code } });
+      if (existing) throw new ConflictException('Mã bác sĩ đã tồn tại');
     }
 
-    // Check code uniqueness if updating
-    if (dto.code && dto.code !== doctor.code) {
-      const existing = await this.prisma.doctor.findUnique({
-        where: { code: dto.code },
-      });
-      if (existing) {
-        throw new ConflictException('Mã bác sĩ đã tồn tại');
-      }
+    // Chuẩn bị data update cho bảng Doctor
+    const updateData: any = {
+      code: dto.code,
+      title: dto.title,
+      biography: dto.biography,
+      average_time: dto.average_time,
+    };
+
+    // Logic cập nhật chuyên khoa (Handle connect/disconnect)
+    if (dto.specialization_id) {
+      updateData.specialization = {
+        connect: { id: dto.specialization_id }
+      };
+    } else if (dto.specialization_id === null) {
+      // Nếu gửi null nghĩa là muốn xóa chuyên khoa của bác sĩ này
+      updateData.specialization = {
+        disconnect: true
+      };
     }
 
     return this.prisma.doctor.update({
       where: { id },
-      data: dto,
-      include: {
+      data: {
+        ...updateData,
+        // Cập nhật bảng User (Nested update)
         user: {
-          select: {
-            id: true,
-            full_name: true,
-            phone: true,
-            email: true,
-          },
-        },
+          update: {
+            full_name: dto.full_name,
+            phone: dto.phone,
+            branch_id: dto.branch_id,
+          }
+        }
+      },
+      include: {
+        user: true,
+        specialization: true,
       },
     });
   }
 
-  // ============= SPECIALIZATIONS =============
+  // ============= SPECIALIZATIONS (Giữ nguyên) =============
 
   async getAllSpecializations() {
     return this.prisma.specialization.findMany({
       include: {
-        rooms: true,
+        _count: {
+          select: { rooms: true, doctors: true }
+        }
       },
     });
   }
@@ -236,312 +272,16 @@ export class DoctorsService {
     return { message: 'Xóa chuyên khoa thành công' };
   }
 
-  // ============= ROOMS =============
-
-  async getAllRooms() {
-    return this.prisma.room.findMany({
-      include: {
-        specialization: true,
-        shifts: {
-          include: {
-            doctor: {
-              include: {
-                user: {
-                  select: {
-                    full_name: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-  }
-
-  async getRoomById(id: string) {
-    const room = await this.prisma.room.findUnique({
-      where: { id },
-      include: {
-        specialization: true,
-        shifts: {
-          include: {
-            doctor: {
-              include: {
-                user: {
-                  select: {
-                    full_name: true,
-                  },
-                },
-              },
-            },
-          },
-          orderBy: {
-            start_time: 'asc',
-          },
-        },
-      },
-    });
-
-    if (!room) {
-      throw new NotFoundException('Không tìm thấy phòng');
-    }
-
-    return room;
-  }
-
-  async createRoom(dto: CreateRoomDto) {
-    const existing = await this.prisma.room.findUnique({
-      where: { code: dto.code },
-    });
-
-    if (existing) {
-      throw new ConflictException('Mã phòng đã tồn tại');
-    }
-
-    if (dto.specialization_id) {
-      const specialization = await this.prisma.specialization.findUnique({
-        where: { id: dto.specialization_id },
-      });
-      if (!specialization) {
-        throw new NotFoundException('Không tìm thấy chuyên khoa');
-      }
-    }
-
-    return this.prisma.room.create({
-      data: dto,
-      include: {
-        specialization: true,
-      },
-    });
-  }
-
-  async updateRoom(id: string, dto: UpdateRoomDto) {
-    const room = await this.prisma.room.findUnique({ where: { id } });
-    if (!room) {
-      throw new NotFoundException('Không tìm thấy phòng');
-    }
-
-    if (dto.code && dto.code !== room.code) {
-      const existing = await this.prisma.room.findUnique({
-        where: { code: dto.code },
-      });
-      if (existing) {
-        throw new ConflictException('Mã phòng đã tồn tại');
-      }
-    }
-
-    if (dto.specialization_id) {
-      const specialization = await this.prisma.specialization.findUnique({
-        where: { id: dto.specialization_id },
-      });
-      if (!specialization) {
-        throw new NotFoundException('Không tìm thấy chuyên khoa');
-      }
-    }
-
-    return this.prisma.room.update({
-      where: { id },
-      data: dto,
-      include: {
-        specialization: true,
-      },
-    });
-  }
-
-  async deleteRoom(id: string) {
-    const room = await this.prisma.room.findUnique({ where: { id } });
-    if (!room) {
-      throw new NotFoundException('Không tìm thấy phòng');
-    }
-
-    await this.prisma.room.delete({ where: { id } });
-    return { message: 'Xóa phòng thành công' };
-  }
-
-  // ============= DOCTOR SHIFTS =============
-
-  async getDoctorShifts(doctorId: string, startDate?: Date, endDate?: Date) {
-    const where: any = { doctor_id: doctorId };
-
-    if (startDate && endDate) {
-      where.start_time = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
-
+  async getDoctorShifts(doctorId: string) {
+    // Tìm các ca trực của bác sĩ này
     return this.prisma.doctorShift.findMany({
-      where,
+      where: { doctor_id: doctorId },
       include: {
-        room: {
-          include: {
-            specialization: true,
-          },
-        },
+        room: true, // Lấy thông tin phòng để hiển thị tên phòng
       },
       orderBy: {
-        start_time: 'asc',
+        start_time: 'desc', // Sắp xếp ngày mới nhất lên đầu
       },
     });
-  }
-
-  async createDoctorShift(dto: CreateDoctorShiftDto) {
-    // Validate doctor exists
-    const doctor = await this.prisma.doctor.findUnique({
-      where: { id: dto.doctor_id },
-    });
-    if (!doctor) {
-      throw new NotFoundException('Không tìm thấy bác sĩ');
-    }
-
-    // Validate room exists
-    const room = await this.prisma.room.findUnique({
-      where: { id: dto.room_id },
-    });
-    if (!room) {
-      throw new NotFoundException('Không tìm thấy phòng');
-    }
-
-    // Check time validity
-    const startTime = new Date(dto.start_time);
-    const endTime = new Date(dto.end_time);
-
-    if (startTime >= endTime) {
-      throw new BadRequestException('Thời gian kết thúc phải sau thời gian bắt đầu');
-    }
-
-    // Check for conflicting shifts
-    const conflictingShift = await this.prisma.doctorShift.findFirst({
-      where: {
-        doctor_id: dto.doctor_id,
-        OR: [
-          {
-            start_time: {
-              lte: endTime,
-            },
-            end_time: {
-              gte: startTime,
-            },
-          },
-        ],
-      },
-    });
-
-    if (conflictingShift) {
-      throw new ConflictException('Ca trực bị trùng với ca trực khác');
-    }
-
-    return this.prisma.doctorShift.create({
-      data: {
-        doctor_id: dto.doctor_id,
-        room_id: dto.room_id,
-        start_time: startTime,
-        end_time: endTime,
-        recurrence: dto.recurrence,
-      },
-      include: {
-        room: {
-          include: {
-            specialization: true,
-          },
-        },
-      },
-    });
-  }
-
-  async updateDoctorShift(id: string, dto: UpdateDoctorShiftDto) {
-    const shift = await this.prisma.doctorShift.findUnique({
-      where: { id },
-    });
-
-    if (!shift) {
-      throw new NotFoundException('Không tìm thấy ca trực');
-    }
-
-    if (dto.room_id) {
-      const room = await this.prisma.room.findUnique({
-        where: { id: dto.room_id },
-      });
-      if (!room) {
-        throw new NotFoundException('Không tìm thấy phòng');
-      }
-    }
-
-    const startTime = dto.start_time ? new Date(dto.start_time) : shift.start_time;
-    const endTime = dto.end_time ? new Date(dto.end_time) : shift.end_time;
-
-    if (startTime >= endTime) {
-      throw new BadRequestException('Thời gian kết thúc phải sau thời gian bắt đầu');
-    }
-
-    return this.prisma.doctorShift.update({
-      where: { id },
-      data: {
-        room_id: dto.room_id,
-        start_time: dto.start_time ? new Date(dto.start_time) : undefined,
-        end_time: dto.end_time ? new Date(dto.end_time) : undefined,
-        recurrence: dto.recurrence,
-      },
-      include: {
-        room: {
-          include: {
-            specialization: true,
-          },
-        },
-      },
-    });
-  }
-
-  async deleteDoctorShift(id: string) {
-    const shift = await this.prisma.doctorShift.findUnique({
-      where: { id },
-    });
-
-    if (!shift) {
-      throw new NotFoundException('Không tìm thấy ca trực');
-    }
-
-    await this.prisma.doctorShift.delete({ where: { id } });
-    return { message: 'Xóa ca trực thành công' };
-  }
-
-  // Get available time slots for a doctor
-  async getAvailableSlots(doctorId: string, date: Date) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    // Get doctor's shifts for the day
-    const shifts = await this.prisma.doctorShift.findMany({
-      where: {
-        doctor_id: doctorId,
-        start_time: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-      },
-    });
-
-    // Get doctor's appointments for the day
-    const appointments = await this.prisma.appointment.findMany({
-      where: {
-        doctor_assigned_id: doctorId,
-        start_time: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-        status: {
-          notIn: ['cancelled'],
-        },
-      },
-    });
-
-    return {
-      shifts,
-      bookedSlots: appointments,
-    };
   }
 }

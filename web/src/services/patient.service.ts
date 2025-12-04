@@ -74,6 +74,12 @@ export const patientService = {
     return axiosInstance.get(`/patients/${id}`).then((res: any) => res.data);
   },
 
+  // ---> [MỚI] Hàm tạo nhanh bệnh nhân từ form đặt lịch
+  createPatient: (data: any) => {
+    // Data gồm: full_name, phone, gender, date_of_birth, address...
+    return axiosInstance.post('/patients', data).then((res: any) => res.data);
+  },
+
   updatePatient: (id: string, data: Partial<Patient>): Promise<Patient> => {
     return axiosInstance.patch(`/patients/${id}`, data).then((res: any) => res.data);
   },

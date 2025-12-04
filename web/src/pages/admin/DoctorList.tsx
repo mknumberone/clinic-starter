@@ -1,3 +1,5 @@
+// File: src/pages/admin/DoctorList.tsx
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -62,19 +64,19 @@ export default function DoctorList() {
       width: 100,
       render: (code: string) => (
         <Typography.Text code strong>
-          {code}
+          {code || '---'}
         </Typography.Text>
       ),
     },
     {
       title: 'Họ và tên',
       key: 'name',
-      render: (_: unknown, record: Doctor) => (
+      render: (_: unknown, record: any) => (
         <Space>
           <UserOutlined />
           <div>
             <Typography.Text strong>
-              {record.title} {record.user.full_name}
+              {record.title} {record.user?.full_name}
             </Typography.Text>
           </div>
         </Space>
@@ -83,10 +85,10 @@ export default function DoctorList() {
     {
       title: 'Số điện thoại',
       key: 'phone',
-      render: (_: unknown, record: Doctor) => (
+      render: (_: unknown, record: any) => (
         <Space>
           <PhoneOutlined />
-          {record.user.phone}
+          {record.user?.phone}
         </Space>
       ),
     },
@@ -98,17 +100,22 @@ export default function DoctorList() {
     },
     {
       title: 'Chuyên khoa',
-      key: 'specializations',
-      render: () => (
-        <Tag icon={<MedicineBoxOutlined />} color="blue">
-          Nội tổng quát
-        </Tag>
+      key: 'specialization',
+      render: (_: unknown, record: any) => (
+        // SỬA LẠI ĐOẠN NÀY: Hiển thị động từ database
+        record.specialization ? (
+          <Tag icon={<MedicineBoxOutlined />} color="blue">
+            {record.specialization.name}
+          </Tag>
+        ) : (
+          <Tag color="default">Chưa phân khoa</Tag>
+        )
       ),
     },
     {
       title: 'Trạng thái',
       key: 'status',
-      width: 120,
+      width: 150,
       render: () => (
         <Badge status="success" text="Đang hoạt động" />
       ),
@@ -118,7 +125,7 @@ export default function DoctorList() {
       key: 'action',
       width: 100,
       fixed: 'right' as const,
-      render: (_: unknown, record: Doctor) => (
+      render: (_: unknown, record: any) => (
         <Button
           type="link"
           icon={<EyeOutlined />}
@@ -150,13 +157,13 @@ export default function DoctorList() {
             </Col>
             <Col xs={24} md={8}>
               <Select
-                placeholder="Chọn chuyên khoa"
+                placeholder="Lọc theo chuyên khoa"
                 value={specializationFilter}
                 onChange={setSpecializationFilter}
                 allowClear
                 style={{ width: '100%' }}
               >
-                {specializations?.map((spec) => (
+                {specializations?.map((spec: any) => (
                   <Select.Option key={spec.id} value={spec.id}>
                     {spec.name}
                   </Select.Option>
@@ -181,7 +188,7 @@ export default function DoctorList() {
         <Card>
           <Table
             columns={columns}
-            dataSource={data?.data || []}
+            dataSource={Array.isArray(data?.data) ? data.data : []}
             rowKey="id"
             loading={isLoading}
             pagination={{

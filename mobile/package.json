@@ -28,12 +28,10 @@
     "expo-secure-store": "~12.1.1",
     "react-native-web": "~0.18.10",
     "react-dom": "18.2.0",
-    "@expo/webpack-config": "^18.0.1"
-  },
-  "devDependencies": {
-    "@babel/core": "^7.20.0",
+    "@expo/webpack-config": "^18.0.1",
     "@types/react": "~18.0.27",
-    "@types/react": "~18.0.27"
+    "react-native-reanimated": "~2.14.4",
+    "@react-native-community/datetimepicker": "6.7.3"
   },
   "devDependencies": {
     "typescript": "^4.9.4"

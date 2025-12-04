@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,141 +7,194 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Branch {
+  id                     String                 @id @default(uuid())
+  name                   String                 @unique
+  address                String
+  phone                  String?
+  is_active              Boolean                @default(true)
+  created_at             DateTime               @default(now())
+  updated_at             DateTime               @updatedAt
+  email                  String?
+  image                  String?
+  appointments           Appointment[]
+  inventory              BranchInventory[]
+  inventory_transactions InventoryTransaction[]
+  rooms                  Room[]
+  users                  User[]
+}
+
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  password_hash String
-  full_name     String?
-  phone         String?
-  role          String
-  metadata      Json?
-  patients      Patient?
-  doctors       Doctor?
-  appointments  Appointment[] @relation("CreatedAppointments")
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id                   String        @id @default(uuid())
+  email                String        @unique
+  password_hash        String
+  full_name            String?
+  phone                String?
+  branch_id            String?
+  metadata             Json?
+  created_at           DateTime      @default(now())
+  updated_at           DateTime      @updatedAt
+  role                 UserRole      @default(PATIENT)
+  is_active            Boolean       @default(true)
+  avatar               String?
+  created_appointments Appointment[] @relation("CreatedAppointments")
+  doctor               Doctor?
+  patient              Patient?
+  branch               Branch?       @relation(fields: [branch_id], references: [id])
 }
 
 model Patient {
-  id         String   @id @default(uuid())
-  user_id    String   @unique
-  user       User     @relation(fields: [user_id], references: [id])
-  date_of_birth DateTime?
-  gender     String?
-  address    String?
+  id                String          @id @default(uuid())
+  user_id           String          @unique
+  date_of_birth     DateTime?
+  address           String?
   emergency_contact Json?
-  insurance  Json?
-  appointments Appointment[]
-  prescriptions Prescription[]
-  invoices   Invoice[]
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  insurance         Json?
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+  gender            Gender?
+  appointments      Appointment[]
+  invoices          Invoice[]
+  medical_records   MedicalRecord[]
+  user              User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  prescriptions     Prescription[]
 }
 
 model Doctor {
-  id         String   @id @default(uuid())
-  user_id    String   @unique
-  user       User     @relation(fields: [user_id], references: [id])
-  code       String?  @unique
-  title      String?
-  biography  String?
-  qualifications Json?
-  shifts     DoctorShift[]
-  appointments Appointment[] @relation("DoctorAssigned")
-  prescriptions Prescription[]
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id                String          @id @default(uuid())
+  user_id           String          @unique
+  code              String?         @unique
+  title             String?
+  biography         String?
+  qualifications    Json?
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+  average_time      Int             @default(30)
+  specialization_id String?
+  appointments      Appointment[]   @relation("DoctorAssigned")
+  specialization    Specialization? @relation(fields: [specialization_id], references: [id])
+  user              User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  shifts            DoctorShift[]
+  medical_records   MedicalRecord[]
+  prescriptions     Prescription[]
 }
 
 model Specialization {
-  id     String @id @default(uuid())
-  name   String @unique
+  id          String   @id @default(uuid())
+  name        String   @unique
   description String?
-  rooms  Room[]
+  doctors     Doctor[]
+  rooms       Room[]
 }
 
 model Room {
-  id               String   @id @default(uuid())
-  name             String
-  code             String   @unique
+  id                String          @id @default(uuid())
+  name              String
+  code              String          @unique
+  branch_id         String
   specialization_id String?
-  specialization   Specialization? @relation(fields: [specialization_id], references: [id])
-  floor            String?
-  capacity         Int      @default(1)
-  metadata         Json?
-  shifts           DoctorShift[]
-  appointments     Appointment[]
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  floor             String?
+  capacity          Int             @default(1)
+  metadata          Json?
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+  building          String?
+  appointments      Appointment[]
+  shifts            DoctorShift[]
+  branch            Branch          @relation(fields: [branch_id], references: [id])
+  specialization    Specialization? @relation(fields: [specialization_id], references: [id])
 }
 
 model DoctorShift {
   id         String   @id @default(uuid())
   doctor_id  String
   room_id    String
-  doctor     Doctor   @relation(fields: [doctor_id], references: [id])
-  room       Room     @relation(fields: [room_id], references: [id])
   start_time DateTime
   end_time   DateTime
   recurrence Json?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+  doctor     Doctor   @relation(fields: [doctor_id], references: [id])
+  room       Room     @relation(fields: [room_id], references: [id])
 
   @@unique([doctor_id, start_time, end_time])
   @@index([room_id, start_time])
 }
 
 model Appointment {
-  id                 String    @id @default(uuid())
-  patient_id         String?
+  id                 String                 @id @default(uuid())
+  patient_id         String
   room_id            String?
+  branch_id          String?
   doctor_assigned_id String?
   appointment_type   String?
   start_time         DateTime
   end_time           DateTime
-  status             String    @default("scheduled")
   source             String?
   notes              String?
   created_by         String?
-  patient            Patient?  @relation(fields: [patient_id], references: [id])
-  room               Room?     @relation(fields: [room_id], references: [id])
-  doctor             Doctor?   @relation("DoctorAssigned", fields: [doctor_assigned_id], references: [id])
-  creator            User?     @relation("CreatedAppointments", fields: [created_by], references: [id])
+  created_at         DateTime               @default(now())
+  updated_at         DateTime               @updatedAt
+  status             AppointmentStatus      @default(SCHEDULED)
+  branch             Branch?                @relation(fields: [branch_id], references: [id])
+  creator            User?                  @relation("CreatedAppointments", fields: [created_by], references: [id])
+  doctor             Doctor?                @relation("DoctorAssigned", fields: [doctor_assigned_id], references: [id])
+  patient            Patient                @relation(fields: [patient_id], references: [id])
+  room               Room?                  @relation(fields: [room_id], references: [id])
   status_logs        AppointmentStatusLog[]
-  prescriptions      Prescription[]
   invoices           Invoice[]
-  created_at         DateTime   @default(now())
-  updated_at         DateTime   @updatedAt
+  medical_record     MedicalRecord?
+  prescriptions      Prescription[]
 
   @@index([room_id, start_time])
   @@index([patient_id])
+  @@index([branch_id])
+}
+
+model MedicalRecord {
+  id             String         @id @default(uuid())
+  appointment_id String         @unique
+  patient_id     String
+  doctor_id      String
+  diagnosis      String
+  symptoms       String?
+  clinical_data  Json?
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+  appointment    Appointment    @relation(fields: [appointment_id], references: [id])
+  doctor         Doctor         @relation(fields: [doctor_id], references: [id])
+  patient        Patient        @relation(fields: [patient_id], references: [id])
+  prescriptions  Prescription[]
 }
 
 model AppointmentStatusLog {
-  id             String    @id @default(uuid())
+  id             String             @id @default(uuid())
   appointment_id String
-  appointment    Appointment @relation(fields: [appointment_id], references: [id])
-  old_status     String?
-  new_status     String?
   changed_by     String?
-  created_at     DateTime @default(now())
+  created_at     DateTime           @default(now())
+  old_status     AppointmentStatus?
+  new_status     AppointmentStatus?
+  appointment    Appointment        @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
 }
 
 model Prescription {
-  id             String   @id @default(uuid())
-  appointment_id String?
-  patient_id     String?
-  doctor_id      String?
-  notes          String?
-  appointment    Appointment? @relation(fields:[appointment_id], references:[id])
-  patient        Patient? @relation(fields:[patient_id], references:[id])
-  doctor         Doctor? @relation(fields:[doctor_id], references:[id])
-  items          PrescriptionItem[]
-  created_at     DateTime @default(now())
+  id                String             @id @default(uuid())
+  appointment_id    String?
+  patient_id        String?
+  doctor_id         String?
+  notes             String?
+  created_at        DateTime           @default(now())
+  branch_id         String
+  medical_record_id String?
+  appointment       Appointment?       @relation(fields: [appointment_id], references: [id])
+  doctor            Doctor?            @relation(fields: [doctor_id], references: [id])
+  medical_record    MedicalRecord?     @relation(fields: [medical_record_id], references: [id])
+  patient           Patient?           @relation(fields: [patient_id], references: [id])
+  items             PrescriptionItem[]
 }
 
 model PrescriptionItem {
-  id              String   @id @default(uuid())
+  id              String       @id @default(uuid())
   prescription_id String
   medication_id   String?
   name            String?
@@ -150,54 +202,86 @@ model PrescriptionItem {
   frequency       String?
   duration        String?
   instructions    String?
-  prescription    Prescription @relation(fields:[prescription_id], references:[id])
-  medication      Medication? @relation(fields:[medication_id], references:[id])
+  quantity        Int?         @default(1)
+  medication      Medication?  @relation(fields: [medication_id], references: [id])
+  prescription    Prescription @relation(fields: [prescription_id], references: [id], onDelete: Cascade)
 }
 
 model Medication {
-  id        String @id @default(uuid())
-  code      String? @unique
-  name      String
-  form      String?
-  base_info Json?
-  items     PrescriptionItem[]
-  created_at DateTime @default(now())
+  id                     String                 @id @default(uuid())
+  code                   String?                @unique
+  name                   String
+  form                   String?
+  base_info              Json?
+  created_at             DateTime               @default(now())
+  base_unit              String                 @default("Viên")
+  conversion_factor      Int                    @default(1)
+  cost_price             Decimal                @default(0) @db.Decimal(10, 2)
+  import_unit            String?                @default("Hộp")
+  profit_margin          Float                  @default(0.2)
+  sell_price             Decimal                @default(0) @db.Decimal(10, 2)
+  inventories            BranchInventory[]
+  inventory_transactions InventoryTransaction[]
+  items                  PrescriptionItem[]
+}
+
+model BranchInventory {
+  id               String     @id @default(uuid())
+  branch_id        String
+  medication_id    String
+  quantity         Int        @default(0)
+  batch_number     String
+  expiry_date      DateTime
+  created_at       DateTime   @default(now())
+  import_price     Decimal    @default(0) @db.Decimal(10, 2)
+  initial_quantity Int
+  is_expired       Boolean    @default(false)
+  mfg_date         DateTime
+  pending_quantity Int       @default(0) // Số lượng đang nằm trong đơn thuốc chưa thanh toán
+  sold_quantity    Int        @default(0)
+  updated_at       DateTime   @updatedAt
+  branch           Branch     @relation(fields: [branch_id], references: [id])
+  medication       Medication @relation(fields: [medication_id], references: [id])
+
+  @@unique([branch_id, medication_id, batch_number])
 }
 
 model Invoice {
-  id             String     @id @default(uuid())
+  id             String        @id @default(uuid())
   appointment_id String?
   patient_id     String?
-  total_amount   Float       @default(0)
-  status         String      @default("unpaid")
-  appointment    Appointment? @relation(fields:[appointment_id], references:[id])
-  patient        Patient? @relation(fields:[patient_id], references:[id])
+  total_amount   Decimal       @default(0) @db.Decimal(10, 2)
+  created_at     DateTime      @default(now())
+  status         InvoiceStatus @default(UNPAID)
+  branch_id      String
+  appointment    Appointment?  @relation(fields: [appointment_id], references: [id])
+  patient        Patient?      @relation(fields: [patient_id], references: [id])
   items          InvoiceItem[]
   payments       Payment[]
-  created_at     DateTime @default(now())
 }
 
 model InvoiceItem {
-  id          String @id @default(uuid())
-  invoice_id  String
-  description String?
-  amount      Float?
-  quantity    Int     @default(1)
-  invoice     Invoice @relation(fields:[invoice_id], references:[id])
+  id            String   @id @default(uuid())
+  invoice_id    String
+  description   String?
+  amount        Decimal? @db.Decimal(10, 2)
+  quantity      Int      @default(1)
+  medication_id String?
+  invoice       Invoice  @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
 }
 
 model Payment {
-  id             String @id @default(uuid())
+  id             String         @id @default(uuid())
   invoice_id     String
-  amount         Float
-  method         String?
+  amount         Decimal        @db.Decimal(10, 2)
   transaction_id String?
-  paid_at        DateTime @default(now())
-  invoice        Invoice @relation(fields:[invoice_id], references:[id])
+  paid_at        DateTime       @default(now())
+  method         PaymentMethod?
+  invoice        Invoice        @relation(fields: [invoice_id], references: [id])
 }
 
 model File {
-  id         String @id @default(uuid())
+  id         String   @id @default(uuid())
   owner_id   String?
   owner_type String?
   key        String
@@ -205,4 +289,63 @@ model File {
   mime_type  String?
   size       Int?
   created_at DateTime @default(now())
+}
+
+model InventoryTransaction {
+  id            String          @id @default(uuid())
+  branch_id     String
+  medication_id String
+  type          TransactionType
+  quantity      Int
+  price         Decimal         @default(0) @db.Decimal(10, 2)
+  batch_number  String?
+  expiry_date   DateTime?
+  reference_id  String?
+  note          String?
+  created_at    DateTime        @default(now())
+  created_by    String?
+  branch        Branch          @relation(fields: [branch_id], references: [id])
+  medication    Medication      @relation(fields: [medication_id], references: [id])
+}
+
+enum UserRole {
+  ADMIN
+  DOCTOR
+  PATIENT
+  RECEPTIONIST
+  BRANCH_MANAGER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PAID
+  PARTIALLY_PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+}
+
+enum TransactionType {
+  IMPORT
+  EXPORT
+  ADJUSTMENT
 }

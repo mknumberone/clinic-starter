@@ -5,13 +5,13 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Seeding database...');
-  
+
   const defaultPassword = await bcrypt.hash('password123', 10);
-  
+
   // Tạo admin user
   const admin = await prisma.user.upsert({
     where: { email: 'admin@clinic.com' },
-    update: { 
+    update: {
       role: 'ADMIN',
       phone: '0999999999',
     },
@@ -24,11 +24,11 @@ async function main() {
     },
   });
   console.log('✅ Admin user created:', admin);
-  
+
   // Tạo doctor user
   const doctor = await prisma.user.upsert({
     where: { email: 'doctor@clinic.com' },
-    update: { 
+    update: {
       role: 'DOCTOR',
       phone: '0888888888',
     },
@@ -41,11 +41,11 @@ async function main() {
     },
   });
   console.log('✅ Doctor user created:', doctor);
-  
+
   // Tạo patient user
   const patient = await prisma.user.upsert({
     where: { email: 'patient@clinic.com' },
-    update: { 
+    update: {
       role: 'PATIENT',
       phone: '0777777777',
     },
@@ -58,7 +58,7 @@ async function main() {
     },
   });
   console.log('✅ Patient user created:', patient);
-  
+
   console.log('\n📋 Test credentials:');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('👨‍💼 ADMIN:');

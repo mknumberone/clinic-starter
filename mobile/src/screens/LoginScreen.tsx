@@ -38,7 +38,7 @@ export default function LoginScreen({ navigation }: Props) {
   const loginMutation = useMutation({
     mutationFn: authService.login,
     onSuccess: async (data) => {
-      await login(data.access_token, data.user as any);
+      await login(data.token, data.user as any);
     },
   });
 

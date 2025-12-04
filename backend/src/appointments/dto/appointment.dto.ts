@@ -1,11 +1,19 @@
-import { IsNotEmpty, IsString, IsOptional, IsDateString, IsIn } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsDateString, IsEnum, IsNumber } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { AppointmentStatus } from '@prisma/client';
+import { Transform } from 'class-transformer';
+
 
 export class CreateAppointmentDto {
   @ApiProperty({ example: 'uuid', description: 'ID bệnh nhân' })
   @IsNotEmpty({ message: 'ID bệnh nhân không được để trống' })
   @IsString()
   patient_id: string;
+
+  @ApiProperty({ example: 'uuid', description: 'ID chi nhánh' })
+  @IsNotEmpty({ message: 'Vui lòng chọn chi nhánh' })
+  @IsString()
+  branch_id: string;
 
   @ApiProperty({ example: 'uuid', description: 'ID phòng khám', required: false })
   @IsOptional()
@@ -69,14 +77,16 @@ export class UpdateAppointmentDto {
   @IsDateString()
   end_time?: string;
 
-  @ApiProperty({ 
-    example: 'scheduled', 
-    description: 'Trạng thái (scheduled, confirmed, in-progress, completed, cancelled, no-show)',
-    required: false 
+  @ApiProperty({
+    example: AppointmentStatus.SCHEDULED,
+    description: 'Trạng thái cuộc hẹn',
+    enum: AppointmentStatus,
+    required: false
   })
   @IsOptional()
-  @IsIn(['scheduled', 'confirmed', 'in-progress', 'completed', 'cancelled', 'no-show'])
-  status?: string;
+  @Transform(({ value }) => value ? value.replace(/-/g, '_').toUpperCase() : value)
+  @IsEnum(AppointmentStatus)
+  status?: AppointmentStatus;
 
   @ApiProperty({ example: 'Cần xét nghiệm máu', required: false })
   @IsOptional()
@@ -85,16 +95,54 @@ export class UpdateAppointmentDto {
 }
 
 export class ChangeAppointmentStatusDto {
-  @ApiProperty({ 
-    example: 'confirmed', 
-    description: 'Trạng thái mới (scheduled, confirmed, in-progress, completed, cancelled, no-show)' 
+  @ApiProperty({
+    example: AppointmentStatus.CONFIRMED,
+    description: 'Trạng thái mới',
+    enum: AppointmentStatus
   })
   @IsNotEmpty({ message: 'Trạng thái không được để trống' })
-  @IsIn(['scheduled', 'confirmed', 'in-progress', 'completed', 'cancelled', 'no-show'])
-  status: string;
+  @Transform(({ value }) => value ? value.replace(/-/g, '_').toUpperCase() : value)
+  @IsEnum(AppointmentStatus)
+  status: AppointmentStatus;
 
   @ApiProperty({ example: 'Bệnh nhân xác nhận', description: 'Lý do thay đổi', required: false })
   @IsOptional()
   @IsString()
   reason?: string;
+}
+
+// ---> THÊM CLASS NÀY VÀO CUỐI FILE
+export class GetAvailableSlotsDto {
+  @ApiProperty({ example: '2025-11-25', description: 'Ngày muốn khám' })
+  @IsNotEmpty()
+  @IsDateString()
+  date: string;
+
+  @ApiProperty({ example: 'uuid', description: 'ID chi nhánh' })
+  @IsNotEmpty()
+  @IsString()
+  branch_id: string;
+
+  @ApiProperty({ required: false, description: 'ID chuyên khoa (để lọc bác sĩ)' })
+  @IsOptional()
+  @IsString()
+  specialization_id?: string;
+
+  @ApiProperty({ required: false, description: 'ID bác sĩ (nếu chọn đích danh)' })
+  @IsOptional()
+  @IsString()
+  doctor_id?: string;
+
+
+}
+
+// ---> COPY ĐOẠN NÀY VÀO CUỐI FILE
+export class CreateRecurringAppointmentDto extends CreateAppointmentDto {
+  @ApiProperty({ example: 3, description: 'Số lần lặp lại' })
+  @IsNumber()
+  recurring_count: number;
+
+  @ApiProperty({ example: 1, description: 'Khoảng cách tháng (ví dụ 1 tháng/lần)' })
+  @IsNumber()
+  interval_months: number;
 }

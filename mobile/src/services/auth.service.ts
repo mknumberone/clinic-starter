@@ -10,13 +10,16 @@ export interface LoginDto {
 }
 
 export interface LoginResponse {
-  access_token: string;
+  token: string;
   user: {
     id: string;
     phone: string;
     full_name: string;
     email?: string;
-    role: string;
+    role: 'PATIENT' | 'DOCTOR' | 'ADMIN';
+     branch_id?: string | null;
+    patient_id?: string | null;
+    doctor_id?: string | null;
   };
 }
 

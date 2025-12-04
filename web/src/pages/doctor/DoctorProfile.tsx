@@ -12,6 +12,8 @@ import {
   Avatar,
   Divider,
   Tag,
+  Alert,
+  Spin
 } from 'antd';
 import {
   UserOutlined,
@@ -38,17 +40,17 @@ interface DoctorProfile {
     phone: string;
     email?: string;
     full_name: string;
+    avatar?: string;
   };
-  specializations?: Array<{
+  specialization?: {
     id: string;
     name: string;
-  }>;
+  };
 }
 
 interface UpdateProfileDto {
   title?: string;
   biography?: string;
-  qualifications?: any;
 }
 
 export default function DoctorProfile() {
@@ -57,20 +59,27 @@ export default function DoctorProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [form] = Form.useForm();
 
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ['doctor-profile', user?.id],
+  // 1. Lấy thông tin hồ sơ (Logic đã sửa: Tìm theo User ID)
+  const { data: profile, isLoading, error } = useQuery({
+    queryKey: ['my-doctor-profile-detail', user?.id],
     queryFn: async () => {
-      // Get doctor info
-      const doctorsResponse = await axiosInstance.get('/doctors', { params: { limit: 1 } });
-      const doctors = doctorsResponse.data.data;
-      if (doctors && doctors.length > 0) {
-        const doctorId = doctors[0].id;
-        const profileResponse = await axiosInstance.get(`/doctors/${doctorId}`);
-        return profileResponse.data as DoctorProfile;
-      }
-      throw new Error('Doctor not found');
+      // Gọi API lấy danh sách bác sĩ để tìm người khớp với user hiện tại
+      const res = await axiosInstance.get('/doctors', {
+        params: { limit: 100 }
+      });
+
+      const doctors = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+
+      // Tìm bác sĩ có user_id trùng với user đang đăng nhập
+      const myProfile = doctors.find((d: any) => d.user?.id === user?.id || d.user_id === user?.id);
+
+      if (!myProfile) throw new Error('Tài khoản chưa liên kết với hồ sơ bác sĩ');
+
+      // Gọi chi tiết để lấy đầy đủ thông tin (nếu API list thiếu trường)
+      const detailRes = await axiosInstance.get(`/doctors/${myProfile.id}`);
+      return detailRes.data as DoctorProfile;
     },
-    enabled: !!user,
+    enabled: !!user?.id,
   });
 
   const updateMutation = useMutation({
@@ -79,7 +88,7 @@ export default function DoctorProfile() {
     },
     onSuccess: () => {
       message.success('Cập nhật hồ sơ thành công');
-      queryClient.invalidateQueries({ queryKey: ['doctor-profile'] });
+      queryClient.invalidateQueries({ queryKey: ['my-doctor-profile-detail'] });
       setIsEditing(false);
     },
     onError: () => {
@@ -110,25 +119,28 @@ export default function DoctorProfile() {
     updateMutation.mutate(data);
   };
 
+  // --- RENDER ---
+
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="p-6">
-          <Card loading />
+        <div className="flex justify-center items-center h-screen">
+          <Spin size="large" tip="Đang tải hồ sơ..." />
         </div>
       </DashboardLayout>
     );
   }
 
-  if (!profile) {
+  if (error || !profile) {
     return (
       <DashboardLayout>
         <div className="p-6">
-          <Card>
-            <div className="text-center py-8 text-red-500">
-              Không tìm thấy thông tin hồ sơ
-            </div>
-          </Card>
+          <Alert
+            type="error"
+            message="Không tìm thấy hồ sơ"
+            description="Tài khoản của bạn chưa được liên kết với hồ sơ bác sĩ nào."
+            showIcon
+          />
         </div>
       </DashboardLayout>
     );
@@ -138,93 +150,91 @@ export default function DoctorProfile() {
     <DashboardLayout>
       <div className="p-6">
         <div className="mb-6 flex items-center justify-between">
-          <Title level={2}>Hồ sơ của tôi</Title>
+          <Title level={2} style={{ margin: 0 }}>Hồ sơ của tôi</Title>
           {!isEditing && (
             <Button type="primary" icon={<EditOutlined />} onClick={handleEdit}>
-              Chỉnh sửa
+              Chỉnh sửa thông tin
             </Button>
           )}
         </div>
 
-        <Card>
-          <div className="flex items-center mb-6">
-            <Avatar size={80} icon={<UserOutlined />} className="mr-4" />
+        <Card className="shadow-md">
+          <div className="flex items-center mb-8 p-4 bg-gray-50 rounded-lg">
+            <Avatar
+              size={100}
+              src={profile.user.avatar}
+              icon={<UserOutlined />}
+              className="mr-6 border-4 border-white shadow-sm bg-indigo-200 text-indigo-600"
+            />
             <div>
-              <Title level={4} style={{ margin: 0 }}>
-                {profile.title} {profile.user.full_name}
+              <Title level={3} style={{ margin: 0 }}>
+                {profile.title ? `${profile.title}. ` : 'Bác sĩ '} {profile.user.full_name}
               </Title>
-              <Text type="secondary">Mã bác sĩ: {profile.code}</Text>
-              <br />
-              <Text type="secondary">{profile.user.phone}</Text>
+              <div className="mt-2 space-x-2">
+                <Tag color="blue">{profile.code}</Tag>
+                {profile.specialization ? (
+                  <Tag color="purple">{profile.specialization.name}</Tag>
+                ) : (
+                  <Tag>Chưa phân khoa</Tag>
+                )}
+              </div>
             </div>
           </div>
 
-          <Divider />
+          <Divider orientation="left">Thông tin chi tiết</Divider>
 
           {!isEditing ? (
-            <>
-              <Descriptions column={{ xs: 1, sm: 2 }} bordered>
-                <Descriptions.Item label="Họ và tên">
-                  {profile.user.full_name}
-                </Descriptions.Item>
-                <Descriptions.Item label="Mã bác sĩ">
-                  {profile.code}
-                </Descriptions.Item>
-                <Descriptions.Item label="Chức danh">
-                  {profile.title || '-'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Số điện thoại">
-                  {profile.user.phone}
-                </Descriptions.Item>
-                <Descriptions.Item label="Email">
-                  {profile.user.email || '-'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Chuyên khoa">
-                  {profile.specializations && profile.specializations.length > 0 ? (
-                    <Space wrap>
-                      {profile.specializations.map((spec) => (
-                        <Tag key={spec.id} icon={<MedicineBoxOutlined />} color="blue">
-                          {spec.name}
-                        </Tag>
-                      ))}
-                    </Space>
-                  ) : (
-                    '-'
-                  )}
-                </Descriptions.Item>
-                <Descriptions.Item label="Tiểu sử" span={2}>
-                  {profile.biography || '-'}
-                </Descriptions.Item>
-              </Descriptions>
-            </>
+            <Descriptions column={{ xs: 1, sm: 2 }} bordered size="middle" labelStyle={{ width: '150px', fontWeight: 600 }}>
+              <Descriptions.Item label="Họ và tên">
+                {profile.user.full_name}
+              </Descriptions.Item>
+              <Descriptions.Item label="Mã bác sĩ">
+                {profile.code}
+              </Descriptions.Item>
+              <Descriptions.Item label="Chức danh">
+                {profile.title || <span className="text-gray-400 italic">Chưa cập nhật</span>}
+              </Descriptions.Item>
+              <Descriptions.Item label="Số điện thoại">
+                {profile.user.phone}
+              </Descriptions.Item>
+              <Descriptions.Item label="Email">
+                {profile.user.email || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Chuyên khoa">
+                {profile.specialization?.name || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Tiểu sử / Kinh nghiệm" span={2}>
+                <div style={{ whiteSpace: 'pre-wrap' }}>
+                  {profile.biography || <span className="text-gray-400 italic">Chưa có thông tin giới thiệu</span>}
+                </div>
+              </Descriptions.Item>
+            </Descriptions>
           ) : (
-            <Form form={form} layout="vertical" onFinish={handleSubmit}>
+            <Form form={form} layout="vertical" onFinish={handleSubmit} className="max-w-2xl">
               <Form.Item
                 name="title"
                 label="Chức danh"
                 rules={[{ required: true, message: 'Vui lòng nhập chức danh' }]}
+                tooltip="Ví dụ: Bác sĩ, Thạc sĩ, Tiến sĩ..."
               >
-                <Input placeholder="VD: Bác sĩ, Thạc sĩ, Tiến sĩ" />
+                <Input placeholder="VD: Bác sĩ CKI" />
               </Form.Item>
 
-              <Form.Item name="biography" label="Tiểu sử">
+              <Form.Item name="biography" label="Tiểu sử & Kinh nghiệm">
                 <Input.TextArea
-                  rows={5}
-                  placeholder="Giới thiệu về bản thân, kinh nghiệm làm việc..."
+                  rows={6}
+                  placeholder="Giới thiệu về bản thân, số năm kinh nghiệm, thế mạnh chuyên môn..."
+                  showCount
+                  maxLength={500}
                 />
               </Form.Item>
 
-              <div className="flex justify-end gap-2 mt-4">
-                <Button icon={<CloseOutlined />} onClick={handleCancel}>
-                  Hủy
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  htmlType="submit"
-                  loading={updateMutation.isPending}
-                >
+              <div className="flex justify-start gap-3 mt-6">
+                <Button type="primary" icon={<SaveOutlined />} htmlType="submit" loading={updateMutation.isPending}>
                   Lưu thay đổi
+                </Button>
+                <Button icon={<CloseOutlined />} onClick={handleCancel}>
+                  Hủy bỏ
                 </Button>
               </div>
             </Form>

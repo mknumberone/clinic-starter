@@ -1,22 +1,22 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { secureStorage } from './secure-storage';
 
-// Ngrok tunnel - hoạt động mọi nơi, không cần cùng mạng
-const API_BASE_URL = 'https://piperaceous-overconstant-vaughn.ngrok-free.dev/api';
+// Thay thế ngrok URL bằng địa chỉ IP chính xác của bạn
+const API_BASE_URL = 'http://192.168.100.248:3000/api';
 
+// Xóa các headers liên quan đến ngrok vì không còn cần thiết
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
-    'ngrok-skip-browser-warning': 'true', // Bỏ qua trang cảnh báo ngrok (free plan)
   },
-  timeout: 15000, // 15 seconds timeout (ngrok có thể chậm hơn)
+  timeout: 30000,
 });
 
 // Request interceptor - Add JWT token
 axiosInstance.interceptors.request.use(
   async (config) => {
-    const token = await SecureStore.getItemAsync('access_token');
+    const token = await secureStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -32,8 +32,8 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      await SecureStore.deleteItemAsync('access_token');
-      await SecureStore.deleteItemAsync('user');
+      await secureStorage.deleteItem('access_token');
+      await secureStorage.deleteItem('user');
       // Navigation to login will be handled by the component
     }
     return Promise.reject(error);

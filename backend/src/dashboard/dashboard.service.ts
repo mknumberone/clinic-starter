@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AppointmentStatus, InvoiceStatus, Prisma } from '@prisma/client';
+
+const decimalToNumber = (value?: Prisma.Decimal | number | null) =>
+  value ? Number(value) : 0;
 
 @Injectable()
 export class DashboardService {
@@ -33,7 +37,7 @@ export class DashboardService {
       this.prisma.appointment.count(),
       this.prisma.invoice.count({
         where: {
-          status: 'unpaid',
+          status: InvoiceStatus.UNPAID,
         },
       }),
       this.prisma.payment.aggregate({
@@ -49,7 +53,7 @@ export class DashboardService {
       todayAppointments,
       totalAppointments,
       pendingInvoices,
-      totalRevenue: totalRevenue._sum.amount || 0,
+      totalRevenue: decimalToNumber(totalRevenue._sum.amount),
     };
   }
 
@@ -95,7 +99,7 @@ export class DashboardService {
       if (!acc[date]) {
         acc[date] = 0;
       }
-      acc[date] += payment.amount;
+      acc[date] += decimalToNumber(payment.amount);
       return acc;
     }, {} as Record<string, number>);
 
@@ -115,7 +119,7 @@ export class DashboardService {
           gte: now,
         },
         status: {
-          in: ['scheduled', 'confirmed'],
+          in: [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED],
         },
       },
       include: {
@@ -160,9 +164,9 @@ export class DashboardService {
           start_time: {
             gte: now,
           },
-          status: {
-            in: ['scheduled', 'confirmed'],
-          },
+        status: {
+          in: [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED],
+        },
         },
         include: {
           doctor: {
@@ -209,7 +213,7 @@ export class DashboardService {
       this.prisma.invoice.findMany({
         where: {
           patient_id: patientId,
-          status: 'unpaid',
+          status: InvoiceStatus.UNPAID,
         },
         include: {
           items: true,
@@ -220,7 +224,10 @@ export class DashboardService {
       }),
     ]);
 
-    const totalUnpaid = unpaidInvoices.reduce((sum, inv) => sum + inv.total_amount, 0);
+    const totalUnpaid = unpaidInvoices.reduce(
+      (sum, inv) => sum + decimalToNumber(inv.total_amount),
+      0,
+    );
 
     return {
       upcomingAppointments,

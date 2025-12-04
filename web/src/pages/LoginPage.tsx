@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Form, Input, Button, message, Steps, Card } from 'antd';
 import { PhoneOutlined, SafetyOutlined, UserOutlined } from '@ant-design/icons';
@@ -7,12 +7,40 @@ import { useAuthStore } from '../stores/authStore';
 
 const { Step } = Steps;
 
+const redirectByRole = (role: string, navigate: ReturnType<typeof useNavigate>) => {
+  switch (role) {
+    case 'ADMIN':
+      navigate('/admin/dashboard', { replace: true });
+      break;
+    case 'DOCTOR':
+      navigate('/doctor/dashboard', { replace: true });
+      break;
+    case 'BRANCH_MANAGER': // <--- THÊM MỚI
+      navigate('/manager/dashboard', { replace: true });
+      break;
+    case 'RECEPTIONIST':   // <--- THÊM MỚI
+      navigate('/receptionist/dashboard', { replace: true });
+      break;
+    case 'PATIENT':
+      navigate('/patient/dashboard', { replace: true });
+      break;
+    default:
+      // Nếu role lạ, đá về login
+      navigate('/login', { replace: true });
+  }
+};
 export default function LoginPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuthStore();
+  const { login, isAuthenticated, user } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      redirectByRole(user.role, navigate);
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleSendOtp = async (values: { phone: string }) => {
     try {
@@ -35,24 +63,15 @@ export default function LoginPage() {
         phone,
         otp: values.otp,
       });
-      
+
       console.log('Login response:', response);
       console.log('User role:', response.user.role);
-      
+
       login(response.token, response.user);
       message.success('Đăng nhập thành công!');
-      
+
       // Navigate based on role
-      if (response.user.role === 'ADMIN') {
-        console.log('Navigating to /admin/dashboard');
-        navigate('/admin/dashboard');
-      } else if (response.user.role === 'DOCTOR') {
-        console.log('Navigating to /doctor/dashboard');
-        navigate('/doctor/dashboard');
-      } else {
-        console.log('Navigating to /patient/dashboard');
-        navigate('/patient/dashboard');
-      }
+      redirectByRole(response.user.role, navigate);
     } catch (error: any) {
       console.error('Login error:', error);
       message.error(error.response?.data?.message || 'Xác thực OTP thất bại');
@@ -63,7 +82,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-indigo-500 via-purple-500 to-pink-500">
-      <Card 
+      <Card
         className="w-full max-w-md shadow-2xl"
         title={
           <div className="text-center">
@@ -87,17 +106,17 @@ export default function LoginPage() {
                 { pattern: /^[0-9]{10}$/, message: 'Số điện thoại không hợp lệ!' }
               ]}
             >
-              <Input 
-                prefix={<PhoneOutlined />} 
-                placeholder="0987654321" 
+              <Input
+                prefix={<PhoneOutlined />}
+                placeholder="0987654321"
                 size="large"
               />
             </Form.Item>
             <Form.Item>
-              <Button 
-                type="primary" 
-                htmlType="submit" 
-                block 
+              <Button
+                type="primary"
+                htmlType="submit"
+                block
                 size="large"
                 loading={loading}
               >
@@ -118,27 +137,27 @@ export default function LoginPage() {
               ]}
               extra="Mã OTP mặc định trong môi trường phát triển: 123456"
             >
-              <Input 
-                prefix={<SafetyOutlined />} 
-                placeholder="123456" 
+              <Input
+                prefix={<SafetyOutlined />}
+                placeholder="123456"
                 size="large"
                 maxLength={6}
               />
             </Form.Item>
             <Form.Item>
-              <Button 
-                type="primary" 
-                htmlType="submit" 
-                block 
+              <Button
+                type="primary"
+                htmlType="submit"
+                block
                 size="large"
                 loading={loading}
               >
                 Xác nhận
               </Button>
             </Form.Item>
-            <Button 
-              type="link" 
-              block 
+            <Button
+              type="link"
+              block
               onClick={() => setCurrentStep(0)}
             >
               ← Quay lại

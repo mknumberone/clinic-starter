@@ -1,10 +1,16 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { SendOtpDto, VerifyOtpDto, RegisterDto, LoginDto } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
+import { Prisma } from '@prisma/client'; // Import Prisma
+
+type UserWithRelations = Prisma.UserGetPayload<{
+  include: { patient: true; doctor: true };
+}>;
+
 
 @Injectable()
 export class AuthService {
@@ -13,7 +19,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private redisService: RedisService,
-  ) {}
+  ) { }
 
   // Normalize phone number to consistent format
   private normalizePhone(phone: string): string {
@@ -24,14 +30,47 @@ export class AuthService {
     return phone;
   }
 
+  private normalizeRole(role?: string): string { // Đổi kiểu trả về thành string cho rộng
+    const normalized = (role ?? 'PATIENT').toUpperCase();
+
+    // Danh sách các role hợp lệ
+    const validRoles = ['ADMIN', 'DOCTOR', 'BRANCH_MANAGER', 'RECEPTIONIST', 'PATIENT'];
+
+    if (validRoles.includes(normalized)) {
+      return normalized;
+    }
+
+    return 'PATIENT';
+  }
+
+  private buildUserResponse(user: UserWithRelations) {
+    return {
+      id: user.id,
+      phone: user.phone,
+      email: user.email,
+      full_name: user.full_name,
+      role: this.normalizeRole(user.role),
+      branch_id: user.branch_id,
+      patient_id: user.patient ? user.patient.id : null,
+      doctor_id: user.doctor ? user.doctor.id : null,
+    };
+  }
+
   // Generate OTP (in production, use SMS service)
   private generateOtp(): string {
-    // For development, use DEFAULT_OTP from env
-    const defaultOtp = this.configService.get<string>('DEFAULT_OTP');
-    if (defaultOtp) {
-      return defaultOtp;
+    // Ưu tiên OTP cố định từ biến môi trường nếu được cấu hình
+    const envOtp = this.configService.get<string>('DEFAULT_OTP');
+    if (envOtp && envOtp.trim().length > 0) {
+      return envOtp;
     }
-    // In production, generate random 6-digit OTP
+
+    // Nếu chưa cấu hình, mặc định dùng OTP cố định ở môi trường dev/test
+    const nodeEnv = (this.configService.get<string>('NODE_ENV') || 'development').toLowerCase();
+    if (nodeEnv !== 'production') {
+      return '123456';
+    }
+
+    // Môi trường production không cấu hình OTP => tạo ngẫu nhiên
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
@@ -91,35 +130,28 @@ export class AuthService {
     }
 
     // Create user and patient
-    const user = await this.prisma.user.create({
+    const user = (await this.prisma.user.create({
       data: {
         phone,
         email: dto.email,
         full_name: dto.full_name,
-        role: 'patient',
+        role: 'PATIENT',
         password_hash: await bcrypt.hash(phone, 10), // dummy password
-        patients: {
+        patient: {
           create: {},
         },
       },
       include: {
-        patients: true,
+        patient: true,
       },
-    });
+    })) as UserWithRelations; // Ép kiểu để truy cập patients
 
     // Generate JWT token
     const token = this.generateToken(user);
 
     return {
       message: 'Đăng ký thành công',
-      user: {
-        id: user.id,
-        phone: user.phone,
-        email: user.email,
-        full_name: user.full_name,
-        role: user.role,
-        patient_id: user.patients?.id,
-      },
+      user: this.buildUserResponse(user),
       token,
     };
   }
@@ -135,13 +167,13 @@ export class AuthService {
     }
 
     // Find user
-    const user = await this.prisma.user.findFirst({
+    const user = (await this.prisma.user.findFirst({
       where: { phone },
       include: {
-        patients: true,
-        doctors: true,
+        patient: true,
+        doctor: true,
       },
-    });
+    })) as UserWithRelations; // Ép kiểu để truy cập relations
 
     if (!user) {
       throw new UnauthorizedException('Số điện thoại chưa được đăng ký');
@@ -152,15 +184,7 @@ export class AuthService {
 
     return {
       message: 'Đăng nhập thành công',
-      user: {
-        id: user.id,
-        phone: user.phone,
-        email: user.email,
-        full_name: user.full_name,
-        role: user.role,
-        patient_id: user.patients?.id,
-        doctor_id: user.doctors?.id,
-      },
+      user: this.buildUserResponse(user),
       token,
     };
   }
@@ -170,7 +194,8 @@ export class AuthService {
     const payload = {
       sub: user.id,
       phone: user.phone,
-      role: user.role,
+      role: this.normalizeRole(user.role),
+      branch_id: user.branch_id,
     };
 
     return this.jwtService.sign(payload);
@@ -178,26 +203,19 @@ export class AuthService {
 
   // Validate user from JWT
   async validateUser(userId: string) {
-    const user = await this.prisma.user.findUnique({
+    const user = (await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        patients: true,
-        doctors: true,
+        patient: true,
+        doctor: true,
       },
-    });
+    })) as UserWithRelations; // Ép kiểu để truy cập relations
 
     if (!user) {
       throw new UnauthorizedException('User không tồn tại');
     }
 
-    return {
-      id: user.id,
-      phone: user.phone,
-      email: user.email,
-      full_name: user.full_name,
-      role: user.role,
-      patient_id: user.patients?.id,
-      doctor_id: user.doctors?.id,
-    };
+    // SỬA: Trả về đối tượng với các trường ID an toàn
+    return this.buildUserResponse(user);
   }
 }

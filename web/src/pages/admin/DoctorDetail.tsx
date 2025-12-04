@@ -1,4 +1,7 @@
+// File: src/pages/admin/DoctorDetail.tsx
+
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -29,6 +32,7 @@ import {
 } from '@ant-design/icons';
 import { doctorService } from '@/services/doctor.service';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import EditDoctorModal from './components/EditDoctorModal';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -36,6 +40,7 @@ const { Title } = Typography;
 export default function DoctorDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const { data: doctor, isLoading } = useQuery({
     queryKey: ['doctor', id],
@@ -47,11 +52,10 @@ export default function DoctorDetail() {
     },
   });
 
-  const { data: shifts } = useQuery({
-    queryKey: ['doctor-shifts', id],
-    queryFn: () => doctorService.getDoctorShifts(id!),
-    enabled: !!id,
-  });
+  // Logic lấy shift không đổi, nhưng lưu ý ở backend đã xóa controller shifts trong doctor
+  // Nếu API getDoctorById trả về luôn shifts thì dùng luôn doctor.shifts
+  // Ở đây giả sử vẫn gọi API riêng hoặc dùng data include
+  const shifts = doctor?.shifts || [];
 
   if (isLoading) {
     return (
@@ -63,9 +67,7 @@ export default function DoctorDetail() {
     );
   }
 
-  if (!doctor) {
-    return null;
-  }
+  if (!doctor) return null;
 
   const dayOfWeekMap: Record<number, string> = {
     0: 'Chủ nhật',
@@ -80,21 +82,22 @@ export default function DoctorDetail() {
   const shiftColumns = [
     {
       title: 'Thứ',
-      dataIndex: 'day_of_week',
-      key: 'day_of_week',
-      render: (day: number) => <Tag color="blue">{dayOfWeekMap[day]}</Tag>,
-    },
-    {
-      title: 'Giờ bắt đầu',
       dataIndex: 'start_time',
-      key: 'start_time',
-      render: (time: string) => dayjs(time).format('HH:mm'),
+      key: 'day_of_week',
+      render: (time: string) => <Tag color="blue">{dayOfWeekMap[dayjs(time).day()]}</Tag>,
     },
     {
-      title: 'Giờ kết thúc',
-      dataIndex: 'end_time',
-      key: 'end_time',
-      render: (time: string) => dayjs(time).format('HH:mm'),
+      title: 'Ngày',
+      dataIndex: 'start_time',
+      key: 'date',
+      render: (time: string) => dayjs(time).format('DD/MM/YYYY'),
+    },
+    {
+      title: 'Giờ trực',
+      key: 'time',
+      render: (_: any, record: any) => (
+        <span>{dayjs(record.start_time).format('HH:mm')} - {dayjs(record.end_time).format('HH:mm')}</span>
+      ),
     },
     {
       title: 'Phòng khám',
@@ -120,7 +123,7 @@ export default function DoctorDetail() {
               Hồ sơ Bác sĩ
             </Title>
           </Space>
-          <Button type="primary" icon={<EditOutlined />}>
+          <Button type="primary" icon={<EditOutlined />} onClick={() => setIsEditModalOpen(true)}>
             Chỉnh sửa
           </Button>
         </div>
@@ -165,67 +168,50 @@ export default function DoctorDetail() {
             column={{ xs: 1, sm: 2, md: 2 }}
           >
             <Descriptions.Item
-              label={
-                <Space>
-                  <UserOutlined /> Họ và tên
-                </Space>
-              }
+              label={<Space><UserOutlined /> Họ và tên</Space>}
             >
               <Typography.Text strong>
-                {doctor.title} {doctor.user.full_name}
+                {doctor.title} {doctor.user?.full_name}
               </Typography.Text>
             </Descriptions.Item>
+
             <Descriptions.Item label="Mã bác sĩ">
-              <Typography.Text code strong>
-                {doctor.code}
-              </Typography.Text>
+              <Typography.Text code strong>{doctor.code}</Typography.Text>
             </Descriptions.Item>
-            <Descriptions.Item
-              label={
-                <Space>
-                  <PhoneOutlined /> Số điện thoại
-                </Space>
-              }
-            >
-              {doctor.user.phone}
+
+            <Descriptions.Item label={<Space><PhoneOutlined /> Số điện thoại</Space>}>
+              {doctor.user?.phone}
             </Descriptions.Item>
-            <Descriptions.Item
-              label={
-                <Space>
-                  <MailOutlined /> Email
-                </Space>
-              }
-            >
-              {doctor.user.email || '-'}
+
+            <Descriptions.Item label={<Space><MailOutlined /> Email</Space>}>
+              {doctor.user?.email || '-'}
             </Descriptions.Item>
+
+            {/* --- PHẦN SỬA: HIỂN THỊ 1 CHUYÊN KHOA --- */}
             <Descriptions.Item
-              label={
-                <Space>
-                  <MedicineBoxOutlined /> Chuyên khoa
-                </Space>
-              }
+              label={<Space><MedicineBoxOutlined /> Chuyên khoa</Space>}
               span={2}
             >
-              {doctor.specializations && doctor.specializations.length > 0 ? (
-                <Space wrap>
-                  {doctor.specializations.map((spec) => (
-                    <Tag key={spec.id} color="blue" icon={<MedicineBoxOutlined />}>
-                      {spec.name}
-                    </Tag>
-                  ))}
-                </Space>
+              {doctor.specialization ? (
+                <Tag color="blue" icon={<MedicineBoxOutlined />}>
+                  {doctor.specialization.name}
+                </Tag>
               ) : (
-                <Tag>Chưa có chuyên khoa</Tag>
+                <Tag>Chưa phân khoa</Tag>
               )}
             </Descriptions.Item>
+            {/* ---------------------------------------- */}
+
             <Descriptions.Item label="Tiểu sử" span={2}>
               {doctor.biography || 'Chưa có thông tin'}
             </Descriptions.Item>
+
+            <Descriptions.Item label="Thời gian khám TB">
+              {doctor.average_time ? `${doctor.average_time} phút/ca` : '30 phút (Mặc định)'}
+            </Descriptions.Item>
+
             <Descriptions.Item label="Ngày tạo">
               {dayjs(doctor.created_at).format('DD/MM/YYYY HH:mm')}
-            </Descriptions.Item>
-            <Descriptions.Item label="Cập nhật lần cuối">
-              {dayjs(doctor.updated_at).format('DD/MM/YYYY HH:mm')}
             </Descriptions.Item>
           </Descriptions>
         </Card>
@@ -237,14 +223,12 @@ export default function DoctorDetail() {
               {
                 key: 'shifts',
                 label: (
-                  <span>
-                    <ClockCircleOutlined /> Lịch trực
-                  </span>
+                  <span><ClockCircleOutlined /> Lịch trực</span>
                 ),
                 children: (
                   <Table
                     columns={shiftColumns}
-                    dataSource={shifts || []}
+                    dataSource={shifts}
                     rowKey="id"
                     pagination={false}
                     locale={{ emptyText: 'Chưa có lịch trực' }}
@@ -254,16 +238,20 @@ export default function DoctorDetail() {
               {
                 key: 'appointments',
                 label: (
-                  <span>
-                    <CalendarOutlined /> Lịch hẹn
-                  </span>
+                  <span><CalendarOutlined /> Lịch hẹn</span>
                 ),
-                children: <div>Danh sách lịch hẹn sẽ hiển thị ở đây</div>,
+                children: <div className="p-4 text-gray-500 text-center">Chức năng đang phát triển</div>,
               },
             ]}
           />
         </Card>
       </div>
+
+      <EditDoctorModal
+        open={isEditModalOpen}
+        onCancel={() => setIsEditModalOpen(false)}
+        doctorData={doctor}
+      />
     </DashboardLayout>
   );
 }

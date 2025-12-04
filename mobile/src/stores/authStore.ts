@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import { secureStorage } from '../lib/secure-storage';
 
 export interface User {
   id: string;
@@ -7,6 +7,9 @@ export interface User {
   full_name: string;
   email?: string;
   role: 'PATIENT' | 'DOCTOR' | 'ADMIN';
+  branch_id?: string | null;
+  patient_id?: string | null;
+  doctor_id?: string | null;
 }
 
 interface AuthState {
@@ -26,22 +29,22 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
 
   login: async (token, user) => {
-    await SecureStore.setItemAsync('access_token', token);
-    await SecureStore.setItemAsync('user', JSON.stringify(user));
+    await secureStorage.setItem('access_token', token);
+    await secureStorage.setItem('user', JSON.stringify(user));
     set({ token, user, isAuthenticated: true });
   },
 
   logout: async () => {
-    await SecureStore.deleteItemAsync('access_token');
-    await SecureStore.deleteItemAsync('user');
+    await secureStorage.deleteItem('access_token');
+    await secureStorage.deleteItem('user');
     set({ token: null, user: null, isAuthenticated: false });
   },
 
   loadAuthData: async () => {
     try {
-      const token = await SecureStore.getItemAsync('access_token');
-      const userStr = await SecureStore.getItemAsync('user');
-      
+      const token = await secureStorage.getItem('access_token');
+      const userStr = await secureStorage.getItem('user');
+
       if (token && userStr) {
         const user = JSON.parse(userStr);
         set({ token, user, isAuthenticated: true, isLoading: false });

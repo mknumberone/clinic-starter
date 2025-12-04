@@ -1,109 +1,75 @@
 import axiosInstance from '@/lib/axios';
 
-export interface Invoice {
-  id: string;
-  appointment_id: string;
-  patient_id: string;
-  total_amount: number;
-  paid_amount: number;
-  status: 'pending' | 'partially_paid' | 'paid' | 'cancelled';
-  due_date?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-  appointment?: {
-    start_time: string;
-    appointment_type: string;
-  };
-  patient?: {
-    user: {
-      full_name: string;
-      phone: string;
-    };
-  };
-  items?: InvoiceItem[];
-  payments?: Payment[];
-}
+// --- INTERFACES (Đồng bộ với Prisma Schema) ---
 
 export interface InvoiceItem {
   id: string;
   invoice_id: string;
-  description: string;
+  description: string; // Tên thuốc
+  medication_id?: string;
   quantity: number;
-  amount: number;
+  amount: number;      // Thành tiền (Decimal ở backend về đây là number hoặc string)
 }
 
 export interface Payment {
   id: string;
   invoice_id: string;
   amount: number;
-  method: string;
-  transaction_id?: string;
+  method: 'CASH' | 'CARD' | 'TRANSFER';
   paid_at: string;
-  notes?: string;
+}
+
+export interface Invoice {
+  id: string;
+  appointment_id?: string;
+  patient_id?: string;
+  branch_id: string;
+  total_amount: number;
+  // Enum status khớp với Backend (IN HOA)
+  status: 'UNPAID' | 'PAID' | 'PARTIALLY_PAID' | 'CANCELLED';
+  created_at: string;
+  updated_at: string;
+
+  // Relations
+  patient?: {
+    user: {
+      full_name: string;
+      phone: string;
+    };
+  };
+  appointment?: {
+    start_time: string;
+    appointment_type: string;
+  };
+  items: InvoiceItem[];
+  payments: Payment[];
 }
 
 export interface InvoiceListParams {
-  page?: number;
-  limit?: number;
-  patientId?: string;
   status?: string;
-  startDate?: string;
-  endDate?: string;
-}
-
-export interface InvoiceListResponse {
-  data: Invoice[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-export interface CreateInvoiceDto {
-  appointment_id: string;
-  patient_id: string;
-  items: Array<{
-    description: string;
-    quantity: number;
-    amount: number;
-  }>;
-  notes?: string;
-}
-
-export interface CreatePaymentDto {
-  amount: number;
-  method: string;
-  transaction_id?: string;
-  notes?: string;
+  patientId?: string;
 }
 
 export const invoiceService = {
-  getInvoices: (params?: InvoiceListParams): Promise<InvoiceListResponse> => {
-    return axiosInstance.get('/invoices', { params }).then((res: any) => res.data);
+  // 1. Lấy danh sách hóa đơn
+  // API Backend: GET /prescriptions/invoices/list/all
+  getInvoices: async (params?: InvoiceListParams) => {
+    const response = await axiosInstance.get('/prescriptions/invoices/list/all', { params });
+    // Đảm bảo luôn trả về mảng
+    return Array.isArray(response.data) ? response.data : [];
   },
 
-  getInvoiceById: (id: string): Promise<Invoice> => {
-    return axiosInstance.get(`/invoices/${id}`).then((res: any) => res.data);
+  // 2. Lấy chi tiết 1 hóa đơn
+  // API Backend: GET /prescriptions/invoices/:id
+  getInvoiceById: async (id: string): Promise<Invoice> => {
+    const response = await axiosInstance.get(`/prescriptions/invoices/${id}`);
+    return response.data;
   },
 
-  createInvoice: (data: CreateInvoiceDto): Promise<Invoice> => {
-    return axiosInstance.post('/invoices', data).then((res: any) => res.data);
-  },
-
-  updateInvoice: (id: string, data: Partial<CreateInvoiceDto>): Promise<Invoice> => {
-    return axiosInstance.put(`/invoices/${id}`, data).then((res: any) => res.data);
-  },
-
-  deleteInvoice: (id: string): Promise<void> => {
-    return axiosInstance.delete(`/invoices/${id}`).then((res: any) => res.data);
-  },
-
-  createPayment: (invoiceId: string, data: CreatePaymentDto): Promise<Payment> => {
-    return axiosInstance
-      .post(`/invoices/${invoiceId}/payments`, data)
-      .then((res: any) => res.data);
-  },
+  // 3. Tạo thanh toán (Thu tiền)
+  // API Backend: POST /prescriptions/payments
+  createPayment: async (data: { invoice_id: string; amount: number; payment_method: string }) => {
+    const response = await axiosInstance.post('/prescriptions/payments', data);
+    return response.data;
+  }
 };

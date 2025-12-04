@@ -1,6 +1,7 @@
-import { IsNotEmpty, IsString, IsOptional, IsArray, IsDateString } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsInt } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
+// --- DTO CHO BÁC SĨ ---
 export class CreateDoctorDto {
   @ApiProperty({ example: 'BS001', description: 'Mã bác sĩ', required: false })
   @IsOptional()
@@ -17,10 +18,10 @@ export class CreateDoctorDto {
   @IsString()
   biography?: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: { degree: 'Bác sĩ Đa khoa', university: 'ĐH Y Hà Nội', year: 2010 },
     description: 'Bằng cấp và chứng chỉ',
-    required: false 
+    required: false
   })
   @IsOptional()
   qualifications?: any;
@@ -45,8 +46,35 @@ export class UpdateDoctorDto {
   @ApiProperty({ description: 'Bằng cấp', required: false })
   @IsOptional()
   qualifications?: any;
+
+  // --- Fields của bảng USER (Cần thêm vào để sửa) ---
+  @ApiProperty({ description: 'ID chuyên khoa', required: false })
+  @IsOptional()
+  @IsString()
+  specialization_id?: string;  // <--- Backend đang lỗi dòng này vì thiếu nó
+
+  @ApiProperty({ description: 'Họ tên', required: false })
+  @IsOptional()
+  @IsString()
+  full_name?: string;
+
+  @ApiProperty({ description: 'Số điện thoại', required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({ description: 'Chi nhánh', required: false })
+  @IsOptional()
+  @IsString()
+  branch_id?: string;
+
+  @ApiProperty({ description: 'Thời gian khám trung bình (phút)', required: false, example: 15 })
+  @IsOptional()
+  @IsInt()
+  average_time?: number;
 }
 
+// --- DTO CHO CHUYÊN KHOA ---
 export class CreateSpecializationDto {
   @ApiProperty({ example: 'Tim mạch', description: 'Tên chuyên khoa' })
   @IsNotEmpty({ message: 'Tên chuyên khoa không được để trống' })
@@ -69,115 +97,4 @@ export class UpdateSpecializationDto {
   @IsOptional()
   @IsString()
   description?: string;
-}
-
-export class CreateRoomDto {
-  @ApiProperty({ example: 'Phòng khám 101', description: 'Tên phòng' })
-  @IsNotEmpty({ message: 'Tên phòng không được để trống' })
-  @IsString()
-  name: string;
-
-  @ApiProperty({ example: 'P101', description: 'Mã phòng' })
-  @IsNotEmpty({ message: 'Mã phòng không được để trống' })
-  @IsString()
-  code: string;
-
-  @ApiProperty({ example: 'uuid', description: 'ID chuyên khoa', required: false })
-  @IsOptional()
-  @IsString()
-  specialization_id?: string;
-
-  @ApiProperty({ example: 'Tầng 1', description: 'Tầng', required: false })
-  @IsOptional()
-  @IsString()
-  floor?: string;
-
-  @ApiProperty({ example: 2, description: 'Sức chứa', required: false })
-  @IsOptional()
-  capacity?: number;
-
-  @ApiProperty({ description: 'Thông tin khác', required: false })
-  @IsOptional()
-  metadata?: any;
-}
-
-export class UpdateRoomDto {
-  @ApiProperty({ example: 'Phòng khám 101', required: false })
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @ApiProperty({ example: 'P101', required: false })
-  @IsOptional()
-  @IsString()
-  code?: string;
-
-  @ApiProperty({ example: 'uuid', required: false })
-  @IsOptional()
-  @IsString()
-  specialization_id?: string;
-
-  @ApiProperty({ example: 'Tầng 2', required: false })
-  @IsOptional()
-  @IsString()
-  floor?: string;
-
-  @ApiProperty({ example: 3, required: false })
-  @IsOptional()
-  capacity?: number;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  metadata?: any;
-}
-
-export class CreateDoctorShiftDto {
-  @ApiProperty({ example: 'uuid', description: 'ID bác sĩ' })
-  @IsNotEmpty({ message: 'ID bác sĩ không được để trống' })
-  @IsString()
-  doctor_id: string;
-
-  @ApiProperty({ example: 'uuid', description: 'ID phòng' })
-  @IsNotEmpty({ message: 'ID phòng không được để trống' })
-  @IsString()
-  room_id: string;
-
-  @ApiProperty({ example: '2025-11-14T08:00:00Z', description: 'Thời gian bắt đầu' })
-  @IsNotEmpty({ message: 'Thời gian bắt đầu không được để trống' })
-  @IsDateString()
-  start_time: string;
-
-  @ApiProperty({ example: '2025-11-14T17:00:00Z', description: 'Thời gian kết thúc' })
-  @IsNotEmpty({ message: 'Thời gian kết thúc không được để trống' })
-  @IsDateString()
-  end_time: string;
-
-  @ApiProperty({ 
-    example: { type: 'weekly', days: ['monday', 'wednesday', 'friday'] },
-    description: 'Lặp lại',
-    required: false 
-  })
-  @IsOptional()
-  recurrence?: any;
-}
-
-export class UpdateDoctorShiftDto {
-  @ApiProperty({ example: 'uuid', required: false })
-  @IsOptional()
-  @IsString()
-  room_id?: string;
-
-  @ApiProperty({ example: '2025-11-14T08:00:00Z', required: false })
-  @IsOptional()
-  @IsDateString()
-  start_time?: string;
-
-  @ApiProperty({ example: '2025-11-14T17:00:00Z', required: false })
-  @IsOptional()
-  @IsDateString()
-  end_time?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  recurrence?: any;
 }

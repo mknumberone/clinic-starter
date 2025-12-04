@@ -1,17 +1,29 @@
-import { Controller, Get, Put, Body, Param, UseGuards, Request, ValidationPipe, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, UseGuards, Request, ValidationPipe, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { PatientsService } from './patients.service';
 import { UpdatePatientDto } from './dto/patient.dto';
+import { CreatePatientDto } from './dto/create-patient.dto'; // Đảm bảo đã tạo file này
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('patients')
 @Controller('patients')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth('JWT-auth')
 export class PatientsController {
-  constructor(private patientsService: PatientsService) {}
+  constructor(private patientsService: PatientsService) { }
+
+  // ---> API MỚI: TẠO BỆNH NHÂN <---
+  // Lưu ý: Tạm thời bỏ UseGuards nếu muốn cho phép đăng ký public, 
+  // hoặc giữ nguyên nếu chỉ Admin/Staff được tạo.
+  @Post()
+  @UseGuards(JwtAuthGuard) // Bắt buộc đăng nhập (Admin/Lễ tân tạo hộ)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Tạo hồ sơ bệnh nhân mới (kèm tài khoản)' })
+  async create(@Body(ValidationPipe) dto: CreatePatientDto) {
+    return this.patientsService.create(dto);
+  }
 
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Lấy danh sách bệnh nhân (Admin/Doctor)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -42,6 +54,8 @@ export class PatientsController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Lấy thông tin hồ sơ bệnh nhân' })
   @ApiParam({ name: 'id', description: 'Patient ID' })
   @ApiResponse({ status: 200, description: 'Thông tin bệnh nhân' })
@@ -51,6 +65,8 @@ export class PatientsController {
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Cập nhật hồ sơ bệnh nhân' })
   @ApiParam({ name: 'id', description: 'Patient ID' })
   @ApiBody({ type: UpdatePatientDto })
@@ -66,6 +82,8 @@ export class PatientsController {
   }
 
   @Get(':id/appointments')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Lấy danh sách lịch hẹn của bệnh nhân' })
   @ApiParam({ name: 'id', description: 'Patient ID' })
   @ApiResponse({ status: 200, description: 'Danh sách lịch hẹn' })
@@ -74,6 +92,8 @@ export class PatientsController {
   }
 
   @Get(':id/prescriptions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Lấy danh sách đơn thuốc của bệnh nhân' })
   @ApiParam({ name: 'id', description: 'Patient ID' })
   @ApiResponse({ status: 200, description: 'Danh sách đơn thuốc' })
@@ -82,6 +102,8 @@ export class PatientsController {
   }
 
   @Get(':id/invoices')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Lấy danh sách hóa đơn của bệnh nhân' })
   @ApiParam({ name: 'id', description: 'Patient ID' })
   @ApiResponse({ status: 200, description: 'Danh sách hóa đơn' })

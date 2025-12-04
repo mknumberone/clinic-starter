@@ -1,147 +1,91 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import {
-  Table,
-  Card,
-  Button,
-  Typography,
-  Row,
-  Col,
-  Select,
-  DatePicker,
-  Tag,
-  message,
-  Progress,
-} from 'antd';
-import {
-  EyeOutlined,
-  PlusOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CloseCircleOutlined,
-} from '@ant-design/icons';
-import { invoiceService, type Invoice } from '@/services/invoice.service';
+import { Table, Card, Tag, Button, Space, Typography, Select, Input } from 'antd';
+import { DollarOutlined, SearchOutlined } from '@ant-design/icons';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { invoiceService, Invoice } from '@/services/invoice.service';
+import PaymentModal from '@/components/modals/PaymentModal';
 import dayjs from 'dayjs';
 
-const { Title, Text } = Typography;
-const { RangePicker } = DatePicker;
+const { Title } = Typography;
 
 export default function InvoiceList() {
-  const navigate = useNavigate();
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [status, setStatus] = useState<string | undefined>();
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>('UNPAID'); // Mặc định hiện đơn chưa trả
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['invoices', page, limit, status, dateRange],
-    queryFn: () =>
-      invoiceService.getInvoices({
-        page,
-        limit,
-        status,
-        startDate: dateRange?.[0]?.format('YYYY-MM-DD'),
-        endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
-      }),
+  // Lấy danh sách hóa đơn
+  const { data: invoices, isLoading } = useQuery({
+    queryKey: ['invoices', statusFilter],
+    queryFn: () => invoiceService.getInvoices({ status: statusFilter }),
   });
-
-  if (error) {
-    message.error('Không thể tải danh sách hóa đơn');
-  }
-
-  const statusConfig: Record<string, { color: string; text: string; icon: any }> = {
-    pending: { color: 'orange', text: 'Chưa thanh toán', icon: <ClockCircleOutlined /> },
-    partially_paid: { color: 'blue', text: 'Thanh toán 1 phần', icon: <ClockCircleOutlined /> },
-    paid: { color: 'green', text: 'Đã thanh toán', icon: <CheckCircleOutlined /> },
-    cancelled: { color: 'red', text: 'Đã hủy', icon: <CloseCircleOutlined /> },
-  };
 
   const columns = [
     {
-      title: 'Mã hóa đơn',
+      title: 'Mã HĐ',
       dataIndex: 'id',
-      key: 'id',
       width: 100,
-      render: (id: string) => (
-        <Typography.Text code>{id.slice(0, 8)}</Typography.Text>
-      ),
+      render: (id: string) => <Tag>{id.slice(0, 8).toUpperCase()}</Tag>,
     },
     {
       title: 'Bệnh nhân',
-      key: 'patient',
-      render: (_: unknown, record: Invoice) => (
+      render: (_: any, r: Invoice) => (
         <div>
-          <Text strong>{record.patient?.user.full_name || 'N/A'}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.patient?.user.phone}
-          </Text>
+          <div className="font-bold">{r.patient?.user?.full_name}</div>
+          <div className="text-xs text-gray-500">{r.patient?.user?.phone}</div>
         </div>
-      ),
+      )
     },
     {
       title: 'Ngày tạo',
       dataIndex: 'created_at',
-      key: 'created_at',
-      render: (date: string) => dayjs(date).format('DD/MM/YYYY'),
+      render: (d: string) => dayjs(d).format('DD/MM/YYYY HH:mm'),
     },
     {
       title: 'Tổng tiền',
       dataIndex: 'total_amount',
-      key: 'total_amount',
+      align: 'right' as const,
       render: (amount: number) => (
-        <Text strong style={{ color: '#1890ff' }}>
-          {amount.toLocaleString('vi-VN')} ₫
-        </Text>
-      ),
-    },
-    {
-      title: 'Đã thanh toán',
-      dataIndex: 'paid_amount',
-      key: 'paid_amount',
-      render: (amount: number) => (
-        <Text style={{ color: '#52c41a' }}>
-          {amount.toLocaleString('vi-VN')} ₫
-        </Text>
-      ),
-    },
-    {
-      title: 'Tiến độ',
-      key: 'progress',
-      width: 150,
-      render: (_: unknown, record: Invoice) => {
-        const percent = Math.round((record.paid_amount / record.total_amount) * 100);
-        return <Progress percent={percent} size="small" />;
-      },
+        <b className="text-red-600 text-base">
+          {Number(amount).toLocaleString()} đ
+        </b>
+      )
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
-      key: 'status',
+      align: 'center' as const,
       render: (status: string) => {
-        const config = statusConfig[status] || { color: 'default', text: status, icon: null };
-        return (
-          <Tag color={config.color} icon={config.icon}>
-            {config.text}
-          </Tag>
-        );
-      },
+        const color = status === 'PAID' ? 'green' : status === 'UNPAID' ? 'red' : 'orange';
+        const label = status === 'PAID' ? 'Đã thanh toán' : status === 'UNPAID' ? 'Chưa thanh toán' : status;
+        return <Tag color={color}>{label}</Tag>;
+      }
     },
     {
       title: 'Thao tác',
       key: 'action',
-      width: 100,
-      fixed: 'right' as const,
-      render: (_: unknown, record: Invoice) => (
-        <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => navigate(`/admin/invoices/${record.id}`)}
-        >
-          Xem
-        </Button>
+      width: 120,
+      render: (_: any, record: Invoice) => (
+        record.status === 'UNPAID' ? (
+          <Button
+            type="primary"
+            size="small"
+            icon={<DollarOutlined />}
+            onClick={() => {
+              setSelectedInvoice(record);
+              setIsModalOpen(true);
+            }}
+          >
+            Thu tiền
+          </Button>
+        ) : (
+          <Button size="small" onClick={() => {
+            setSelectedInvoice(record);
+            setIsModalOpen(true);
+          }}>
+            Xem lại
+          </Button>
+        )
       ),
     },
   ];
@@ -149,76 +93,45 @@ export default function InvoiceList() {
   return (
     <DashboardLayout>
       <div className="p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <Title level={2}>Quản lý Hóa đơn</Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => navigate('/admin/invoices/new')}
-          >
-            Tạo hóa đơn
-          </Button>
+        <div className="mb-6 flex justify-between items-center">
+          <Title level={2} style={{ margin: 0 }}>Quản lý Thu ngân</Title>
         </div>
 
         <Card className="mb-4">
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={8}>
-              <Select
-                placeholder="Trạng thái"
-                value={status}
-                onChange={setStatus}
-                allowClear
-                style={{ width: '100%' }}
-              >
-                <Select.Option value="pending">Chưa thanh toán</Select.Option>
-                <Select.Option value="partially_paid">Thanh toán 1 phần</Select.Option>
-                <Select.Option value="paid">Đã thanh toán</Select.Option>
-                <Select.Option value="cancelled">Đã hủy</Select.Option>
-              </Select>
-            </Col>
-            <Col xs={24} md={12}>
-              <RangePicker
-                placeholder={['Từ ngày', 'Đến ngày']}
-                value={dateRange}
-                onChange={(dates) => setDateRange(dates)}
-                format="DD/MM/YYYY"
-                style={{ width: '100%' }}
-              />
-            </Col>
-            <Col xs={24} md={4}>
-              <Button
-                onClick={() => {
-                  setStatus(undefined);
-                  setDateRange(null);
-                }}
-                block
-              >
-                Xóa bộ lọc
-              </Button>
-            </Col>
-          </Row>
+          <Space>
+            <Select
+              defaultValue="UNPAID"
+              style={{ width: 200 }}
+              onChange={setStatusFilter}
+              options={[
+                { label: 'Chưa thanh toán (Cần thu)', value: 'UNPAID' },
+                { label: 'Đã thanh toán', value: 'PAID' },
+                { label: 'Tất cả', value: undefined },
+              ]}
+            />
+            <Input prefix={<SearchOutlined />} placeholder="Tìm tên bệnh nhân..." />
+          </Space>
         </Card>
 
-        <Card>
+        <Card bodyStyle={{ padding: 0 }}>
           <Table
+            dataSource={invoices}
             columns={columns}
-            dataSource={data?.data || []}
             rowKey="id"
             loading={isLoading}
-            pagination={{
-              current: page,
-              pageSize: limit,
-              total: data?.pagination?.total || 0,
-              showTotal: (total) => `Tổng ${total} hóa đơn`,
-              showSizeChanger: true,
-              onChange: (newPage, newPageSize) => {
-                setPage(newPage);
-                setLimit(newPageSize);
-              },
-            }}
-            scroll={{ x: 1400 }}
+            pagination={{ pageSize: 10 }}
           />
         </Card>
+
+        {/* Modal Thanh Toán */}
+        <PaymentModal
+          invoice={selectedInvoice}
+          open={isModalOpen}
+          onCancel={() => {
+            setIsModalOpen(false);
+            setSelectedInvoice(null);
+          }}
+        />
       </div>
     </DashboardLayout>
   );

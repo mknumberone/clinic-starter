@@ -1,94 +1,90 @@
 import axiosInstance from '@/lib/axios';
 
+// --- DTO Interfaces ---
+export interface GetAvailableSlotsDto {
+  branch_id: string;
+  date: string; // YYYY-MM-DD
+  doctor_id?: string;
+  specialization_id?: string;
+}
+
+export interface CreateAppointmentPayload {
+  patient_id: string;
+  branch_id: string;
+  doctor_assigned_id?: string;
+  room_id?: string;
+  start_time: string; // ISO String
+  end_time: string;   // ISO String
+  appointment_type?: string;
+  notes?: string;
+  // Các trường cho định kỳ (Backend xử lý logic này)
+  is_recurring?: boolean;
+  recurring_count?: number;
+  interval_months?: number;
+}
+
 export interface Appointment {
   id: string;
-  patient_id: string;
-  doctor_assigned_id: string;
-  room_id: string;
+  patient?: { user: { full_name: string; phone: string; avatar?: string } };
+  doctor?: { title: string; code: string; user: { full_name: string }; specialization?: { name: string } };
+  branch?: { name: string; address: string };
+  room?: { name: string; code: string };
   start_time: string;
   end_time: string;
-  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
-  appointment_type: string;
-  notes?: string;
-  created_at: string;
-  patient?: {
-    user: {
-      full_name: string;
-      phone: string;
-    };
-  };
-  doctor?: {
-    code: string;
-    title: string;
-    user: {
-      full_name: string;
-    };
-  };
-  room?: {
-    name: string;
-    code: string;
-  };
-}
-
-export interface AppointmentListParams {
-  page?: number;
-  limit?: number;
-  status?: string;
-  doctorId?: string;
-  patientId?: string;
-  startDate?: string;
-  endDate?: string;
-}
-
-export interface AppointmentListResponse {
-  data: Appointment[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-export interface CreateAppointmentDto {
-  patient_id: string;
-  doctor_assigned_id: string;
-  room_id: string;
-  start_time: string;
-  end_time: string;
-  appointment_type: string;
-  notes?: string;
-}
-
-export interface UpdateAppointmentStatusDto {
   status: string;
+  appointment_type?: string;
   notes?: string;
 }
 
 export const appointmentService = {
-  getAppointments: (params?: AppointmentListParams): Promise<AppointmentListResponse> => {
-    return axiosInstance.get('/appointments', { params }).then((res: any) => res.data);
+  // 1. API Lấy danh sách
+  getAppointments: async (params: any) => {
+    const response = await axiosInstance.get('/appointments', { params });
+    return {
+      data: Array.isArray(response.data) ? response.data : (response.data.data || []),
+      pagination: response.data.pagination || {}
+    };
   },
 
-  getAppointmentById: (id: string): Promise<Appointment> => {
-    return axiosInstance.get(`/appointments/${id}`).then((res: any) => res.data);
+  // 2. API Lấy khung giờ trống (ĐÃ UPDATE: Nhận Object DTO)
+  getAvailableSlots: async (params: GetAvailableSlotsDto) => {
+    // Backend API nhận query params
+    const response = await axiosInstance.get('/appointments/available-slots', {
+      params: {
+        branch_id: params.branch_id,
+        date: params.date,
+        doctor_id: params.doctor_id,
+        specialization_id: params.specialization_id
+      }
+    });
+    return response.data; // Trả về mảng string ['08:00', '08:30'...]
   },
 
-  createAppointment: (data: CreateAppointmentDto): Promise<Appointment> => {
-    return axiosInstance.post('/appointments', data).then((res: any) => res.data);
+  // 3. API Tạo lịch hẹn (ĐÃ UPDATE: Type Payload chuẩn)
+  createAppointment: async (data: CreateAppointmentPayload) => {
+    const response = await axiosInstance.post('/appointments', data);
+    return response.data;
   },
 
-  updateAppointmentStatus: (id: string, data: UpdateAppointmentStatusDto): Promise<Appointment> => {
-    return axiosInstance.put(`/appointments/${id}/status`, data).then((res: any) => res.data);
+  // 4. API Lấy chi tiết
+  getAppointmentById: async (id: string) => {
+    const response = await axiosInstance.get(`/appointments/${id}`);
+    return response.data;
   },
 
-  cancelAppointment: (id: string, reason: string): Promise<void> => {
-    return axiosInstance.post(`/appointments/${id}/cancel`, { reason }).then((res: any) => res.data);
+  // 5. Các hàm bổ trợ khác (Update, Cancel, Status...)
+  updateAppointment: async (id: string, data: any) => {
+    const response = await axiosInstance.put(`/appointments/${id}`, data);
+    return response.data;
   },
 
-  getAvailableSlots: (doctorId: string, date: string): Promise<any> => {
-    return axiosInstance
-      .get(`/doctors/${doctorId}/available-slots`, { params: { date } })
-      .then((res: any) => res.data);
+  changeStatus: async (id: string, status: string, reason?: string) => {
+    const response = await axiosInstance.put(`/appointments/${id}/status`, { status, reason });
+    return response.data;
   },
+
+  cancelAppointment: async (id: string, reason: string) => {
+    const response = await axiosInstance.post(`/appointments/${id}/cancel`, { reason });
+    return response.data;
+  }
 };
