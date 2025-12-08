@@ -1,0 +1,102 @@
+### Upload API Tests
+### Base URL: http://localhost:3000/api/upload
+### Lưu ý: Thay YOUR_JWT_TOKEN bằng token thật từ login
+
+@token = YOUR_JWT_TOKEN
+@baseUrl = http://localhost:3000/api
+
+###
+### 1. Upload Single Image
+POST {{baseUrl}}/upload/image
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-image.jpg"
+Content-Type: image/jpeg
+
+< ./test-images/sample.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="width"
+
+800
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="quality"
+
+85
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+### 2. Upload Document
+POST {{baseUrl}}/upload/document
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-doc.pdf"
+Content-Type: application/pdf
+
+< ./test-documents/sample.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+### 3. Upload with Thumbnail
+POST {{baseUrl}}/upload/thumbnail
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-image.jpg"
+Content-Type: image/jpeg
+
+< ./test-images/sample.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="thumbnailWidth"
+
+300
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="thumbnailHeight"
+
+300
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+### 4. Delete File
+DELETE {{baseUrl}}/upload/file
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "filepath": "/uploads/images/1733123456789-abc123.webp"
+}
+
+###
+### 5. Get File Info
+POST {{baseUrl}}/upload/file/info
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "filepath": "/uploads/images/1733123456789-abc123.webp"
+}
+
+###
+### Test with curl (Copy and paste to terminal)
+
+# Upload Image
+curl -X POST http://localhost:3000/api/upload/image \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "file=@./path/to/image.jpg" \
+  -F "width=800" \
+  -F "quality=85"
+
+# Upload Document
+curl -X POST http://localhost:3000/api/upload/document \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "file=@./path/to/document.pdf"
+
+# Delete File
+curl -X DELETE http://localhost:3000/api/upload/file \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"filepath": "/uploads/images/1733123456789-abc123.webp"}'

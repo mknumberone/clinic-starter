@@ -31,6 +31,7 @@ export class PatientsController {
   @ApiQuery({ name: 'gender', required: false, enum: ['male', 'female', 'other'] })
   @ApiQuery({ name: 'minAge', required: false, type: Number })
   @ApiQuery({ name: 'maxAge', required: false, type: Number })
+  @ApiQuery({ name: 'user_id', required: false, type: String, description: 'Filter by user_id' })
   @ApiResponse({ status: 200, description: 'Danh sách bệnh nhân' })
   async getPatients(
     @Request() req,
@@ -40,6 +41,7 @@ export class PatientsController {
     @Query('gender') gender?: string,
     @Query('minAge') minAge?: string,
     @Query('maxAge') maxAge?: string,
+    @Query('user_id') filterUserId?: string,
   ) {
     return this.patientsService.getPatients({
       userId: req.user.id,
@@ -50,6 +52,7 @@ export class PatientsController {
       gender,
       minAge: minAge ? Number(minAge) : undefined,
       maxAge: maxAge ? Number(maxAge) : undefined,
+      filterUserId,
     });
   }
 

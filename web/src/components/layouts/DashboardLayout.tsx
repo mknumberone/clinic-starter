@@ -18,6 +18,7 @@ import {
   DatabaseOutlined // <--- 1. THÊM IMPORT ICON NÀY,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { uploadService } from '@/services/upload.service';
 import { useAuthStore } from '../../stores/authStore';
 import { useBranchStore } from '@/stores/branchStore';
 // ---> 1. GIỮ NGUYÊN TÊN FILE CŨ CỦA BẠN (số nhiều)
@@ -280,7 +281,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Avatar
                   size="large"
                   icon={<UserOutlined />}
-                  src={user?.avatar}
+                  src={user?.avatar ? uploadService.getFileUrl(user.avatar) : undefined}
                   className="bg-white/20 text-white border-2 border-white/40 shadow-sm"
                 />
               </div>

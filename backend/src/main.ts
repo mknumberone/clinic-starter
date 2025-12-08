@@ -2,9 +2,22 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  
+  // Serve static files from uploads directory
+  // In dev mode: __dirname is src/, uploads is ../uploads
+  // In prod mode: __dirname is dist/, uploads is ../uploads
+  // So just use ../../uploads to go to project root
+  const uploadsPath = join(__dirname, '..', '..', 'uploads');
+  console.log('📁 Serving static files from:', uploadsPath);
+  
+  app.useStaticAssets(uploadsPath, {
+    prefix: '/uploads/',
+  });
   
   // Global prefix
   app.setGlobalPrefix('api');

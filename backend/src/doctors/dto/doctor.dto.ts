@@ -63,6 +63,11 @@ export class UpdateDoctorDto {
   @IsString()
   phone?: string;
 
+  @ApiProperty({ description: 'Avatar URL', required: false })
+  @IsOptional()
+  @IsString()
+  avatar?: string;
+
   @ApiProperty({ description: 'Chi nhánh', required: false })
   @IsOptional()
   @IsString()

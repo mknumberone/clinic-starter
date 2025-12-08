@@ -16,6 +16,9 @@ export default function DoctorDashboard() {
         queryFn: () => dashboardService.getDoctorDashboard(),
     });
 
+    // Debug: Check dashboard structure
+    console.log('Dashboard data:', dashboard);
+
     return (
         <DashboardLayout>
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -25,7 +28,9 @@ export default function DoctorDashboard() {
                         <Card>
                             <Statistic
                                 title="Lịch hẹn hôm nay"
-                                value={dashboard?.todayAppointments || 0}
+                                value={typeof dashboard?.todayAppointments === 'number' 
+                                    ? dashboard.todayAppointments 
+                                    : (dashboard?.todayAppointments?.length || 0)}
                                 prefix={<CalendarOutlined />}
                                 valueStyle={{ color: '#1890ff' }}
                             />

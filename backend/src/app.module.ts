@@ -16,6 +16,7 @@ import { RoomsModule } from './rooms/rooms.module'; // <--- 1. IMPORT FILE NÀY
 
 import { MedicalRecordsModule } from './medical-records/medical-records.module'; // <--- IMPORT NÀY
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { PrescriptionsModule } from './prescriptions/prescriptions.module';
     RoomsModule,
     MedicalRecordsModule,
     PrescriptionsModule,
+    UploadModule,
   ],
   controllers: [],
   providers: [],

@@ -12,6 +12,15 @@ export class UpdatePatientDto {
   full_name?: string;
 
   @ApiProperty({ 
+    example: '/uploads/images/avatar.webp', 
+    description: 'Avatar URL', 
+    required: false 
+  })
+  @IsOptional()
+  @IsString()
+  avatar?: string;
+
+  @ApiProperty({ 
     example: '1990-01-01', 
     description: 'Ngày sinh (YYYY-MM-DD)', 
     required: false 
