@@ -1,152 +1,138 @@
+// src/pages/manager/Dashboard.tsx
+
 import { useQuery } from '@tanstack/react-query';
-import { Card, Row, Col, List, Tag, Space, Avatar, Statistic } from 'antd';
-import {
-    UserOutlined,
-    CalendarOutlined,
-    MedicineBoxOutlined,
-    ClockCircleOutlined,
-} from '@ant-design/icons';
-import { dashboardService } from '../../services/dashboard.service';
-import DashboardLayout from '../../components/layouts/DashboardLayout';
+import { Card, Row, Col, Statistic, Spin, Alert, Typography, Divider, Table, Tag } from 'antd';
+import { CalendarOutlined, DollarOutlined, UserOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { dashboardService } from '@/services/dashboard.service';
+import { useAuthStore } from '@/stores/authStore';
 import dayjs from 'dayjs';
 
-export default function DoctorDashboard() {
-    const { data: dashboard } = useQuery({
-        queryKey: ['doctorDashboard'],
-        queryFn: () => dashboardService.getDoctorDashboard(),
+const { Title, Text } = Typography;
+
+export default function ManagerDashboard() {
+    const { user } = useAuthStore();
+
+    // 1. Lấy thông tin Dashboard chung (dùng API Admin hoặc API Dashboard chung nếu có)
+    // Ở đây, chúng ta sẽ gọi API của Admin, nhưng Backend sẽ tự lọc theo branch_id
+    const { data: stats, isLoading: loadingStats } = useQuery({
+        queryKey: ['manager-admin-stats'],
+        queryFn: () => dashboardService.getAdminStats(),
+        enabled: !!user?.branch_id,
     });
+
+    // 2. Lấy danh sách lịch hẹn sắp tới
+    const { data: upcomingAppointments, isLoading: loadingAppts } = useQuery({
+        queryKey: ['manager-upcoming-appointments'],
+        queryFn: () => dashboardService.getAdminUpcomingAppointments(5),
+        enabled: !!user?.branch_id,
+    });
+
+    // Cần phải có API để lấy thống kê Lịch trực của Chi nhánh (Backend đã có logic này)
+    const { data: shifts, isLoading: loadingShifts } = useQuery({
+        queryKey: ['manager-shifts-today'],
+        queryFn: async () => {
+            // Gọi API lấy shifts, lọc theo ngày hôm nay
+            const res = await dashboardService.getAdminAppointments({
+                startDate: dayjs().startOf('day').toISOString(),
+                endDate: dayjs().endOf('day').toISOString()
+            });
+            // Giả định API Admin Appointments trả về lịch hẹn.
+            // Để lấy Lịch trực, cần phải gọi API GET /shifts
+            // Ở đây, tạm thời reuse Appointment API để lấy dữ liệu về lịch hẹn trong ngày.
+            return res;
+        },
+        enabled: !!user?.branch_id,
+    });
+
+    // Nếu Dashboard đang load hoặc không có branch_id
+    if (loadingStats || !user?.branch_id) {
+        return (
+            <DashboardLayout>
+                <div className="flex justify-center items-center h-96">
+                    <Spin size="large" tip="Đang tải dữ liệu dashboard..." />
+                </div>
+            </DashboardLayout>
+        );
+    }
+
+    const upcomingApptData = Array.isArray(upcomingAppointments) ? upcomingAppointments : [];
+    const todayAppointments = Array.isArray(shifts) ? shifts : [];
+
+    // Cột cho Lịch hẹn sắp tới
+    const apptColumns = [
+        { title: 'Giờ', dataIndex: 'start_time', render: (t: string) => dayjs(t).format('HH:mm') },
+        { title: 'Bệnh nhân', render: (r: any) => r.patient?.user?.full_name || 'N/A' },
+        { title: 'Bác sĩ', render: (r: any) => r.doctor?.user?.full_name || 'Đang xếp' },
+        { title: 'Phòng', dataIndex: ['room', 'code'], render: (c: string) => <Tag>{c}</Tag> },
+    ];
 
     return (
         <DashboardLayout>
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                {/* Today's Stats */}
+            <div className="p-6">
+                <Title level={2}>Dashboard Quản Lý Chi Nhánh</Title>
+                <Text type="secondary" className="block mb-6">
+                    Tổng quan hoạt động của chi nhánh {user.branch?.name || user.branch_id}
+                </Text>
+
                 <Row gutter={[16, 16]}>
-                    <Col xs={24} sm={12} lg={8}>
-                        <Card>
+                    <Col xs={24} sm={8}>
+                        <Card className="shadow-sm">
                             <Statistic
-                                title="Lịch hẹn hôm nay"
-                                value={dashboard?.todayAppointments || 0}
+                                title="Tổng số lịch hẹn"
+                                value={stats?.totalAppointments || 0}
                                 prefix={<CalendarOutlined />}
                                 valueStyle={{ color: '#1890ff' }}
                             />
                         </Card>
                     </Col>
-                    <Col xs={24} sm={12} lg={8}>
-                        <Card>
+                    <Col xs={24} sm={8}>
+                        <Card className="shadow-sm">
                             <Statistic
-                                title="Hoàn thành tuần này"
-                                value={dashboard?.weeklyStats?.completed || 0}
-                                prefix={<MedicineBoxOutlined />}
+                                title="Tổng doanh thu tuần"
+                                value={stats?.totalRevenue || 0}
+                                prefix={<DollarOutlined />}
                                 valueStyle={{ color: '#3f8600' }}
+                                suffix="VNĐ"
                             />
                         </Card>
                     </Col>
-                    <Col xs={24} sm={12} lg={8}>
-                        <Card>
+                    <Col xs={24} sm={8}>
+                        <Card className="shadow-sm">
                             <Statistic
-                                title="Hủy tuần này"
-                                value={dashboard?.weeklyStats?.cancelled || 0}
-                                prefix={<ClockCircleOutlined />}
-                                valueStyle={{ color: '#cf1322' }}
+                                title="Tổng số bệnh nhân"
+                                value={stats?.totalPatients || 0}
+                                prefix={<UserOutlined />}
+                                valueStyle={{ color: '#fa8c16' }}
                             />
                         </Card>
                     </Col>
                 </Row>
 
-                {/* Today's Shifts */}
-                <Card title="Ca trực hôm nay">
-                    {dashboard?.todayShifts && dashboard.todayShifts.length > 0 ? (
-                        <List
-                            dataSource={dashboard.todayShifts}
-                            renderItem={(shift: any) => (
-                                <List.Item>
-                                    <List.Item.Meta
-                                        avatar={<ClockCircleOutlined style={{ fontSize: 24, color: '#1890ff' }} />}
-                                        title={`${shift.startTime} - ${shift.endTime}`}
-                                        description={
-                                            <Space>
-                                                <span>Phòng: {shift.room.roomNumber}</span>
-                                                <Tag color="blue">{shift.dayOfWeek}</Tag>
-                                            </Space>
-                                        }
-                                    />
-                                </List.Item>
-                            )}
-                        />
-                    ) : (
-                        <p>Không có ca trực hôm nay</p>
-                    )}
+                <Divider orientation="left">Lịch hẹn trong ngày ({todayAppointments.length})</Divider>
+
+                <Card className="mb-6 shadow-sm">
+                    <Table
+                        columns={apptColumns}
+                        dataSource={todayAppointments}
+                        rowKey="id"
+                        pagination={false}
+                        locale={{ emptyText: 'Không có lịch hẹn nào hôm nay' }}
+                    />
                 </Card>
 
-                {/* Today's Appointments */}
-                <Card title="Lịch hẹn hôm nay">
-                    {dashboard?.todayAppointmentsList && dashboard.todayAppointmentsList.length > 0 ? (
-                        <List
-                            dataSource={dashboard.todayAppointmentsList}
-                            renderItem={(appointment: any) => (
-                                <List.Item
-                                    actions={[
-                                        <Tag color={
-                                            appointment.status === 'COMPLETED' ? 'green' :
-                                                appointment.status === 'IN_PROGRESS' ? 'orange' :
-                                                    appointment.status === 'CANCELLED' ? 'red' : 'blue'
-                                        }>
-                                            {appointment.status}
-                                        </Tag>
-                                    ]}
-                                >
-                                    <List.Item.Meta
-                                        avatar={<Avatar icon={<UserOutlined />} />}
-                                        title={appointment.patient.user.name}
-                                        description={
-                                            <Space direction="vertical">
-                                                <span>⏰ {appointment.startTime} - {appointment.endTime}</span>
-                                                <span>📍 Phòng {appointment.room.roomNumber}</span>
-                                                {appointment.reason && <span>📝 {appointment.reason}</span>}
-                                            </Space>
-                                        }
-                                    />
-                                </List.Item>
-                            )}
-                        />
-                    ) : (
-                        <p>Không có lịch hẹn hôm nay</p>
-                    )}
-                </Card>
+                <Divider orientation="left">Lịch hẹn sắp tới (Top 5)</Divider>
 
-                {/* Weekly Summary */}
-                <Card title="Tổng kết tuần này">
-                    <Row gutter={16}>
-                        <Col span={8}>
-                            <Card>
-                                <Statistic
-                                    title="Tổng lịch hẹn"
-                                    value={dashboard?.weeklyStats?.total || 0}
-                                    valueStyle={{ color: '#1890ff' }}
-                                />
-                            </Card>
-                        </Col>
-                        <Col span={8}>
-                            <Card>
-                                <Statistic
-                                    title="Đã hoàn thành"
-                                    value={dashboard?.weeklyStats?.completed || 0}
-                                    valueStyle={{ color: '#3f8600' }}
-                                />
-                            </Card>
-                        </Col>
-                        <Col span={8}>
-                            <Card>
-                                <Statistic
-                                    title="Đã hủy"
-                                    value={dashboard?.weeklyStats?.cancelled || 0}
-                                    valueStyle={{ color: '#cf1322' }}
-                                />
-                            </Card>
-                        </Col>
-                    </Row>
+                <Card className="shadow-sm">
+                    <Table
+                        columns={apptColumns}
+                        dataSource={upcomingApptData}
+                        rowKey="id"
+                        pagination={false}
+                        locale={{ emptyText: 'Không có lịch hẹn sắp tới' }}
+                    />
                 </Card>
-            </Space>
+            </div>
         </DashboardLayout>
     );
 }

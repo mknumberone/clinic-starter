@@ -15,7 +15,8 @@ import {
   MenuUnfoldOutlined,
   ShopOutlined,
   ScheduleOutlined,
-  DatabaseOutlined // <--- 1. THÊM IMPORT ICON NÀY,
+  DatabaseOutlined, // <--- 1. THÊM IMPORT ICON NÀY,
+  PlusOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
@@ -117,7 +118,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       return [
         ...commonItems,
         { key: 'staff', icon: <TeamOutlined />, label: 'Nhân sự Chi nhánh', onClick: () => navigate('/manager/staff') },
-        { key: 'profile', icon: <UserOutlined />, label: 'Hồ sơ cá nhân', onClick: () => navigate('/manager/profile') },
+        { key: 'profile', icon: <UserOutlined />, label: 'Hồ sơ cá nhân', onClick: () => navigate('/branch_manager/profile') },
+        { key: 'patients', icon: <UserOutlined />, label: 'Bệnh nhân', onClick: () => navigate('/admin/patients') },
+        {
+          key: 'inventory', // <--- THÊM MỤC NÀY
+          icon: <DatabaseOutlined />, // Sử dụng DatabaseOutlined (đã import ở bản Admin)
+          label: 'Quản lý Kho thuốc',
+          onClick: () => navigate('/manager/inventory'),
+        },
         {
           key: 'shifts',
           icon: <ScheduleOutlined />,
@@ -131,7 +139,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     if (role === 'RECEPTIONIST') {
       return [
         ...commonItems,
-        { key: 'appointments', icon: <CalendarOutlined />, label: 'Lịch hẹn & Check-in', onClick: () => navigate('/receptionist/appointments') },
+        { key: 'appointments', icon: <CalendarOutlined />, label: 'Lịch hẹn ', onClick: () => navigate('/receptionist/appointments') },
+        {
+          key: 'book-appointment-new',
+          icon: <PlusOutlined />,
+          label: 'Đặt lịch mới',
+          onClick: () => navigate('/receptionist/book-appointment')
+        },
         { key: 'invoices', icon: <DollarOutlined />, label: 'Thu ngân', onClick: () => navigate('/receptionist/invoices') },
         { key: 'profile', icon: <UserOutlined />, label: 'Hồ sơ cá nhân', onClick: () => navigate('/receptionist/profile') },
       ];

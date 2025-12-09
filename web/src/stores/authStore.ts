@@ -11,6 +11,7 @@ export interface User {
   avatar?: string;
   email?: string;
 
+  branch?: Branch;
   // ĐÃ UPDATE: Thêm thông tin bệnh nhân (nếu role là PATIENT)
   patient?: {
     id: string;
@@ -21,6 +22,13 @@ export interface User {
   };
 }
 
+// Thêm interface cho Branch (nếu chưa có)
+export interface Branch {
+  id: string;
+  name: string;
+  address?: string;
+  // ...
+}
 interface AuthState {
   user: User | null;
   token: string | null;

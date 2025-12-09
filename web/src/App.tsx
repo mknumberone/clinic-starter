@@ -45,7 +45,8 @@ import PatientPrescriptionDetail from './pages/patient/PatientPrescriptionDetail
 import PatientInvoiceDetail from './pages/patient/PatientInvoiceDetail';
 import PatientPrescriptionList from './pages/patient/PatientPrescriptionList';
 import PatientInvoiceList from './pages/patient/PatientInvoiceList';
-
+import ManagerProfile from './pages/manager/ManagerProfile'; // <--- IMPORT NÀY
+import ReceptionistProfile from './pages/receptionist/ReceptionistProfile'; // <--- IMPORT NÀY
 
 
 // <-- 1. IMPORT FILE NÀY
@@ -128,7 +129,7 @@ function App() {
             <Route
               path="/admin/patients"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR', 'RECEPTIONIST', 'BRANCH_MANAGER']}>
                   <PatientList />
                 </ProtectedRoute>
               }
@@ -384,10 +385,10 @@ function App() {
 
             {/* --- BRANCH MANAGER ROUTES --- */}
             <Route
-              path="/manager/dashboard"
+              path="/branch_manager/dashboard"
               element={
                 <ProtectedRoute allowedRoles={['BRANCH_MANAGER']}>
-                  <ManagerDashboard />
+                  <ManagerDashboard /> //
                 </ProtectedRoute>
               }
             />
@@ -397,6 +398,24 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['BRANCH_MANAGER']}>
                   <ManagerStaffList />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route // <--- THÊM ROUTE NÀY
+              path="/manager/inventory"
+              element={
+                <ProtectedRoute allowedRoles={['BRANCH_MANAGER']}>
+                  {/* TÁI SỬ DỤNG component của Admin */}
+                  <MedicationManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/branch_manager/profile" // <--- SỬA DÒNG NÀY
+              element={
+                <ProtectedRoute allowedRoles={['BRANCH_MANAGER']}>
+                  <ManagerProfile />
                 </ProtectedRoute>
               }
             />
@@ -447,6 +466,21 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['RECEPTIONIST']}>
                   <AppointmentList /> {/* Reuse component cũ */}
+                </ProtectedRoute>
+              }
+            />
+
+            <Route path="/receptionist/book-appointment" element={
+              <ProtectedRoute allowedRoles={['RECEPTIONIST']}>
+                {/* Lễ tân dùng chung component với Manager, đã có logic khóa branch */}
+                <ManagerBookAppointment />
+              </ProtectedRoute>
+            } />
+            <Route
+              path="/receptionist/profile" // <--- SỬA DÒNG NÀY
+              element={
+                <ProtectedRoute allowedRoles={['RECEPTIONIST']}>
+                  <ReceptionistProfile />
                 </ProtectedRoute>
               }
             />
