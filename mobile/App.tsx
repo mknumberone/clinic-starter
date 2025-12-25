@@ -23,6 +23,9 @@ import BookingScreen from './src/screens/BookingScreen';
 import MedicalRecordsScreen from './src/screens/MedicalRecordsScreen';
 import MedicalRecordDetailScreen from './src/screens/MedicalRecordDetailScreen';
 
+import ChatScreen from './src/screens/ChatScreen'; // <--- IMPORT MỚI
+import { useSocketStore } from './src/stores/socketStore'; // <--- IMPORT SOCKET STORE
+
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 const queryClient = new QueryClient();
@@ -97,11 +100,20 @@ function MainTabs() {
 
 // --- CẤU HÌNH ĐIỀU HƯỚNG CHÍNH (STACK) ---
 function AppNavigator() {
-  const { isAuthenticated, isLoading, loadAuthData } = useAuthStore();
+  const { isAuthenticated, isLoading, loadAuthData, token } = useAuthStore();
+  const { connect, disconnect } = useSocketStore(); // <--- SOCKET HOOKS
 
   useEffect(() => {
     loadAuthData();
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      connect(token);
+    } else {
+      disconnect();
+    }
+  }, [isAuthenticated, token]);
 
   if (isLoading) {
     return null; // Hoặc thêm màn hình Splash/Loading
@@ -139,6 +151,12 @@ function AppNavigator() {
               name="InvoiceDetail"
               component={InvoiceDetailScreen}
               options={{ title: 'Chi tiết Hóa đơn & Thanh toán' }}
+            />
+
+            <Stack.Screen
+              name="Chat"
+              component={ChatScreen}
+              options={{ title: 'Hỗ trợ trực tuyến' }}
             />
 
             <Stack.Screen

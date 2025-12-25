@@ -51,6 +51,7 @@ export class AuthService {
       full_name: user.full_name,
       role: this.normalizeRole(user.role),
       branch_id: user.branch_id,
+      avatar: user.avatar,
       patient_id: user.patient ? user.patient.id : null,
       doctor_id: user.doctor ? user.doctor.id : null,
     };
@@ -178,6 +179,9 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Số điện thoại chưa được đăng ký');
     }
+    if (!user.is_active) {
+      throw new UnauthorizedException('Tài khoản đã bị khoá');
+    }
 
     // Generate JWT token
     const token = this.generateToken(user);
@@ -213,6 +217,9 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('User không tồn tại');
+    }
+    if (!user.is_active) {
+      throw new UnauthorizedException('Tài khoản đã bị khoá');
     }
 
     // SỬA: Trả về đối tượng với các trường ID an toàn

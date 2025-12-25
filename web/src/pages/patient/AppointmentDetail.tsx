@@ -10,7 +10,6 @@ import {
     CloseCircleOutlined, HomeOutlined, InfoCircleOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { appointmentService } from '@/services/appointment.service';
 
 const { Title, Text, Paragraph } = Typography;
@@ -54,25 +53,20 @@ export default function AppointmentDetail() {
     };
 
     if (isLoading) return (
-        <DashboardLayout>
-            <div className="flex justify-center items-center h-[50vh]"><Spin size="large" /></div>
-        </DashboardLayout>
+        <div className="flex justify-center items-center h-[50vh]"><Spin size="large" /></div>
     );
 
     if (isError || !appointment) return (
-        <DashboardLayout>
-            <div className="p-6">
+        <div>
                 <Alert message="Lỗi" description="Không tìm thấy thông tin lịch hẹn" type="error" showIcon />
                 <Button className="mt-4" onClick={() => navigate(-1)}>Quay lại</Button>
-            </div>
-        </DashboardLayout>
+        </div>
     );
 
     const statusConfig = getStatusTag(appointment.status);
 
     return (
-        <DashboardLayout>
-            <div className="p-6 max-w-6xl mx-auto">
+        <div className="p-6 max-w-6xl mx-auto">
                 {/* HEADER */}
                 <div className="mb-6 flex items-center justify-between">
                     <Space>
@@ -215,7 +209,6 @@ export default function AppointmentDetail() {
                         )}
                     </Col>
                 </Row>
-            </div>
-        </DashboardLayout>
+        </div>
     );
 }

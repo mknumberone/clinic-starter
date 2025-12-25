@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Table, Card, Tag, Button, Typography, Space } from 'antd';
 import { EyeOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import axiosInstance from '@/lib/axios';
 import dayjs from 'dayjs';
 
@@ -65,8 +64,7 @@ export default function PatientPrescriptionList() {
     ];
 
     return (
-        <DashboardLayout>
-            <div className="p-6">
+        <div>
                 <div className="mb-6">
                     <Title level={3} className="text-blue-700 m-0">
                         <MedicineBoxOutlined /> Đơn Thuốc Của Tôi
@@ -83,7 +81,6 @@ export default function PatientPrescriptionList() {
                         locale={{ emptyText: 'Bạn chưa có đơn thuốc nào' }}
                     />
                 </Card>
-            </div>
-        </DashboardLayout>
+        </div>
     );
 }

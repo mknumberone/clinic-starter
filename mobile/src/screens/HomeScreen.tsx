@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { Text, Avatar, useTheme, FAB } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../stores/authStore';
@@ -7,7 +7,6 @@ import { useNavigation } from '@react-navigation/native';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 
-// Lấy chiều rộng màn hình để tính toán tỷ lệ banner/nút
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
@@ -15,59 +14,66 @@ export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const user = useAuthStore((state) => state.user);
 
-  // --- DỮ LIỆU GIẢ LẬP (MOCK DATA) ---
-  // Vì trong authStore chưa có ngày sinh/giới tính, tôi để tạm giống ảnh mẫu.
-  // Sau này bạn cần update Backend để trả về field này.
+  // Dữ liệu giả lập
   const mockUserData = {
     dob: '18/12/2003',
     gender: 'Nam',
   };
 
-  // Danh sách các nút chức năng
+  // --- CẤU HÌNH MENU ---
   const menuItems = [
     {
       id: 1,
       title: 'Chiều cao\nCân nặng',
       icon: 'chart-line-variant',
-      screen: null, // Chưa có màn này
+      screen: null, // Chưa có -> Sẽ hiện Alert
       color: '#2196F3',
     },
     {
       id: 2,
       title: 'Hồ sơ\nbệnh án',
       icon: 'file-document-outline',
-      screen: 'MedicalRecords', // Link tạm sang Đơn thuốc
+      screen: 'MedicalRecords', // Link sang màn Hồ sơ
       color: '#1565C0',
     },
     {
       id: 3,
       title: 'Đặt lịch khám\ndịch vụ',
       icon: 'calendar-clock',
-      screen: 'Booking', // Link sang Lịch khám
+      screen: 'Booking', // Link sang màn Đặt lịch
       color: '#0277BD',
     },
     {
       id: 4,
       title: 'Gia đình',
       icon: 'account-group-outline',
-      screen: null, // Chưa có màn này
+      screen: null, // Chưa có -> Sẽ hiện Alert
       color: '#00838F',
     },
   ];
 
-  const handleNavigation = (screenName: string | null) => {
+  // --- XỬ LÝ KHI BẤM MENU ---
+  const handleMenuPress = (screenName: string | null, title: string) => {
     if (screenName) {
+      // Nếu có tên màn hình -> Chuyển hướng
       navigation.navigate(screenName);
     } else {
-      console.log('Tính năng đang phát triển');
+      // Nếu chưa có -> Hiện thông báo
+      Alert.alert("Thông báo", `Chức năng "${title.replace('\n', ' ')}" đang được phát triển.`);
     }
+  };
+
+  // --- XỬ LÝ KHI BẤM LIVE CHAT ---
+  const handleOpenChat = () => {
+    // Chuyển hướng sang màn hình Chat đã tạo
+    navigation.navigate('Chat');
   };
 
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-        {/* 1. HEADER LOGO & BRAND */}
+        {/* 1. HEADER BRAND */}
         <View style={styles.headerBrand}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: '#1a237e' }}>DYM</Text>
@@ -77,9 +83,8 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* 2. USER CARD INFO */}
+        {/* 2. USER CARD */}
         <View style={styles.userCard}>
-          {/* Top Section: Avatar + Name */}
           <View style={styles.userInfoRow}>
             <View style={styles.avatarWrapper}>
               <Avatar.Icon size={50} icon="account" style={{ backgroundColor: '#cfd8dc' }} color="#455a64" />
@@ -94,7 +99,6 @@ export default function HomeScreen() {
 
           <View style={styles.dividerLine} />
 
-          {/* Bottom Section: DOB + Gender */}
           <View style={styles.userDetailRow}>
             <View style={styles.detailItem}>
               <MaterialCommunityIcons name="calendar-month-outline" size={20} color="white" />
@@ -107,13 +111,13 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* 3. MENU GRID (4 BUTTONS) */}
+        {/* 3. MENU GRID (SỬA LẠI ONPRESS Ở ĐÂY) */}
         <View style={styles.gridContainer}>
           {menuItems.map((item) => (
             <TouchableOpacity
               key={item.id}
               style={styles.gridItem}
-              onPress={() => handleNavigation(item.screen)}
+              onPress={() => handleMenuPress(item.screen, item.title)} // Gọi hàm xử lý menu
               activeOpacity={0.7}
             >
               <View style={styles.iconContainer}>
@@ -124,9 +128,8 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* 4. PROMOTION BANNER */}
+        {/* 4. BANNER */}
         <View style={styles.bannerContainer}>
-          {/* Dùng ảnh mẫu từ internet vì chưa có file local */}
           <Image
             source={{ uri: 'https://img.freepik.com/free-vector/flat-design-medical-webinar-template_23-2149630460.jpg' }}
             style={styles.bannerImage}
@@ -136,11 +139,12 @@ export default function HomeScreen() {
 
       </ScrollView>
 
-      {/* 5. FLOATING CHAT BUTTON */}
+      {/* 5. NÚT LIVE CHAT (SỬA LẠI ONPRESS Ở ĐÂY) */}
       <FAB
         icon="message-text-outline"
+        label="Hỗ trợ"
         style={styles.fab}
-        onPress={() => console.log('Open Chat')}
+        onPress={handleOpenChat} // Gọi hàm mở chat riêng
         color="white"
         theme={{ colors: { primary: theme.colors.primary } }}
       />
@@ -151,22 +155,18 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff', // Nền trắng sạch
+    backgroundColor: '#ffffff',
   },
   scrollContent: {
-    paddingBottom: 80, // Để không bị nút FAB che mất nội dung cuối
+    paddingBottom: 100, // Tăng padding bottom để không bị nút Chat che
   },
-
-  // Header Brand
   headerBrand: {
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
   },
-
-  // User Card (Blue Card)
   userCard: {
-    backgroundColor: '#2196F3', // Màu xanh dương chủ đạo (giống ảnh)
+    backgroundColor: '#2196F3',
     marginHorizontal: 16,
     borderRadius: 20,
     padding: 20,
@@ -215,8 +215,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
-
-  // Grid Menu
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -225,8 +223,8 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   gridItem: {
-    width: (width - 44) / 2, // Chia đôi màn hình trừ padding
-    backgroundColor: '#E3F2FD', // Nền xanh nhạt
+    width: (width - 44) / 2,
+    backgroundColor: '#E3F2FD',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -242,8 +240,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 20,
   },
-
-  // Banner
   bannerContainer: {
     marginTop: 12,
     paddingHorizontal: 16,
@@ -253,14 +249,12 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 16,
   },
-
-  // FAB
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
-    backgroundColor: '#1976D2', // Xanh đậm hơn chút cho nút chat
+    backgroundColor: '#1976D2',
     borderRadius: 30,
   },
 });

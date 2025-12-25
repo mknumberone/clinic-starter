@@ -15,14 +15,18 @@ import {
   MenuUnfoldOutlined,
   ShopOutlined,
   ScheduleOutlined,
-  DatabaseOutlined, // <--- 1. THÊM IMPORT ICON NÀY,
+  DatabaseOutlined,
   PlusOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../../stores/authStore';
+import { uploadService } from '@/services/upload.service';
+import { useAuthStore } from '@/stores/authStore';
 import { useBranchStore } from '@/stores/branchStore';
-// ---> 1. GIỮ NGUYÊN TÊN FILE CŨ CỦA BẠN (số nhiều)
 import { branchesService } from '@/services/branches.service';
+import { useSocketStore } from '@/stores/socketStore';
+import { useAuthModalStore } from '@/stores/authModalStore'; // Import Store Modal
+import ChatWidget from '@/components/chat/ChatWidget';
 
 const { Header, Sider, Content } = Layout;
 
@@ -35,15 +39,35 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [branchLoading, setBranchLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuthStore();
+
+  const { user, token, logout } = useAuthStore();
   const { branches, selectedBranch, setBranches, selectBranch } = useBranchStore();
+  const { connect, disconnect } = useSocketStore();
+
+  // --- LẤY HÀM MỞ POPUP TỪ STORE ---
+  const { openLogin } = useAuthModalStore();
+
+  const hideChatWidgetPaths = [
+    '/admin/messages',
+    '/manager/messages',
+    '/receptionist/messages'
+  ];
+  const shouldShowChatWidget = !hideChatWidgetPaths.includes(location.pathname);
+
+  useEffect(() => {
+    if (token) {
+      connect(token);
+    }
+    return () => {
+      disconnect();
+    };
+  }, [token, connect, disconnect]);
 
   useEffect(() => {
     let isMounted = true;
     const loadBranches = async () => {
       setBranchLoading(true);
       try {
-        // ---> 2. GỌI ĐÚNG HÀM TRONG FILE CŨ (getBranches)
         const data = await branchesService.getAllBranches();
         if (!isMounted) return;
         setBranches(data);
@@ -63,6 +87,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     loadBranches();
     return () => { isMounted = false; };
   }, []);
+
+  // --- SỬA LẠI HÀM ĐĂNG XUẤT ---
+  const handleLogout = () => {
+    logout();           // 1. Xóa token và thông tin user
+    navigate('/');      // 2. Chuyển hướng ngay về Landing Page
+
+    // 3. Mở Popup đăng nhập (setTimeout nhẹ để đảm bảo trang đã chuyển xong)
+    setTimeout(() => {
+      openLogin();
+    }, 100);
+  };
 
   const getMenuItems = () => {
     const role = user?.role;
@@ -93,12 +128,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           label: 'Quản lý Kho thuốc',
           onClick: () => navigate('/admin/medications')
         },
-        // ---> Đã xóa mục Bệnh nhân bị lặp ở đây <---
         {
           key: 'shifts',
           icon: <ScheduleOutlined />,
           label: 'Quản lý Lịch trực',
           onClick: () => navigate('/admin/shifts'),
+        },
+        {
+          key: 'messages',
+          icon: <MessageOutlined />,
+          label: 'Tin nhắn CSKH',
+          onClick: () => navigate('/admin/messages'),
         },
       ];
     }
@@ -121,8 +161,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         { key: 'profile', icon: <UserOutlined />, label: 'Hồ sơ cá nhân', onClick: () => navigate('/branch_manager/profile') },
         { key: 'patients', icon: <UserOutlined />, label: 'Bệnh nhân', onClick: () => navigate('/admin/patients') },
         {
-          key: 'inventory', // <--- THÊM MỤC NÀY
-          icon: <DatabaseOutlined />, // Sử dụng DatabaseOutlined (đã import ở bản Admin)
+          key: 'inventory',
+          icon: <DatabaseOutlined />,
           label: 'Quản lý Kho thuốc',
           onClick: () => navigate('/manager/inventory'),
         },
@@ -130,8 +170,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           key: 'shifts',
           icon: <ScheduleOutlined />,
           label: 'Quản lý Lịch trực',
-          // ---> 3. SỬA LẠI LINK ĐÚNG CHO MANAGER (Trước đây là /admin/shifts)
           onClick: () => navigate('/manager/shifts'),
+        },
+        {
+          key: 'messages',
+          icon: <MessageOutlined />,
+          label: 'Tin nhắn CSKH',
+          onClick: () => navigate('/manager/messages'),
         },
       ];
     }
@@ -147,6 +192,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           onClick: () => navigate('/receptionist/book-appointment')
         },
         { key: 'invoices', icon: <DollarOutlined />, label: 'Thu ngân', onClick: () => navigate('/receptionist/invoices') },
+        {
+          key: 'messages',
+          icon: <MessageOutlined />,
+          label: 'Tin nhắn CSKH',
+          onClick: () => navigate('/receptionist/messages'),
+        },
         { key: 'profile', icon: <UserOutlined />, label: 'Hồ sơ cá nhân', onClick: () => navigate('/receptionist/profile') },
       ];
     }
@@ -160,17 +211,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       { key: 'invoices', icon: <DollarOutlined />, label: 'Hóa đơn', onClick: () => navigate('/patient/invoices') },
       { key: 'profile', icon: <UserOutlined />, label: 'Hồ sơ', onClick: () => navigate('/patient/profile') },
       {
-        key: 'medical-records', // Key này để active menu
+        key: 'medical-records',
         icon: <FileTextOutlined />,
         label: 'Hồ sơ bệnh án',
         onClick: () => navigate('/patient/medical-records')
       },
     ];
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
   };
 
   const userMenuItems = [
@@ -213,28 +259,31 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         style={{ overflow: 'auto', height: '100vh', position: 'fixed', left: 0, top: 0, bottom: 0 }}
         width={240}
       >
-        <div className="flex items-center justify-center h-[64px] bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 shadow-sm">
+        {/* LOGO AREA: Màu Xanh Dương Sáng #009CAA */}
+        <div className="flex items-center justify-center h-[64px] bg-[#009CAA] shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white font-bold">C</div>
+            <div className="w-8 h-8 bg-white text-[#009CAA] rounded-lg flex items-center justify-center font-extrabold">C</div>
             {!collapsed && <h1 className="text-white text-lg font-bold m-0 tracking-wide uppercase">Clinic</h1>}
           </div>
         </div>
 
+        {/* MENU: Màu nền Xanh Đậm #002840 */}
         <Menu
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname.split('/').pop() || 'dashboard']}
           items={getMenuItems()}
           className="border-r-0 mt-2"
-          style={{ background: '#001529' }}
+          style={{ background: '#002840' }} // Màu Sidebar
         />
       </Sider>
 
       <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'all 0.2s' }}>
+        {/* HEADER: Màu Xanh Navy #003553 */}
         <Header
           className="shadow-md sticky top-0 z-10 px-4"
           style={{
-            background: 'linear-gradient(to right, rgb(138, 43, 226), rgb(255, 105, 180))',
+            background: '#003553', // Màu Header
             height: '64px',
             display: 'flex',
             alignItems: 'center',
@@ -252,20 +301,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           />
 
           <div className="flex items-center gap-6 h-full">
-            <div className="flex flex-col items-end justify-center mr-2">
-              <span className="text-[10px] text-white/90 font-bold uppercase tracking-wider mb-[2px]">
+            <div className="hidden md:flex flex-col items-end justify-center mr-6 h-full pt-1">
+              <span className="text-[10px] text-white/70 font-bold uppercase tracking-widest leading-none mb-[2px]">
                 Chi nhánh
               </span>
+
               {branchLoading ? (
-                <Spin size="small" />
+                <Spin size="small" className="mt-1" />
               ) : (
                 <Select
                   size="small"
                   placeholder="Chọn chi nhánh"
-                  style={{ width: 160 }}
+                  style={{ width: 160, textAlign: 'right' }}
                   dropdownStyle={{ minWidth: 200 }}
-                  className="custom-header-select"
-                  suffixIcon={<span className="text-white/80 text-[10px]">▼</span>}
+                  className="custom-vertical-select"
+                  suffixIcon={<span className="text-white/80 text-[10px] ml-1">▼</span>}
                   bordered={false}
                   options={branches.map((branch) => ({ label: branch.name, value: branch.id }))}
                   value={selectedBranch?.id ?? undefined}
@@ -294,7 +344,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Avatar
                   size="large"
                   icon={<UserOutlined />}
-                  src={user?.avatar}
+                  src={user?.avatar ? uploadService.getFileUrl(user.avatar) : undefined}
                   className="bg-white/20 text-white border-2 border-white/40 shadow-sm"
                 />
               </div>
@@ -305,34 +355,51 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <Content className="m-6 p-6 bg-white rounded-xl shadow-sm min-h-[calc(100vh-112px)]">
           {children}
         </Content>
+
+        <div style={{ display: shouldShowChatWidget ? 'block' : 'none' }}>
+          <ChatWidget />
+        </div>
+
       </Layout>
 
       <style>{`
-        .custom-header-select .ant-select-selector {
-          background-color: rgba(255, 255, 255, 0.15) !important;
+        .custom-vertical-select {
+          text-align: right;
+        }
+        .custom-vertical-select .ant-select-selector {
+          background-color: transparent !important;
           color: white !important;
-          border-radius: 4px !important;
-          height: 24px !important;
-          padding: 0 8px !important;
+          height: 20px !important;
+          padding: 0 !important;
           display: flex;
           align-items: center;
+          justify-content: flex-end;
           box-shadow: none !important;
         }
-        .custom-header-select .ant-select-selection-item {
+        .custom-vertical-select .ant-select-selection-item {
           color: white !important;
-          font-weight: 600;
-          font-size: 13px;
-          line-height: 22px !important;
+          font-weight: 700;
+          font-size: 14px;
+          padding-right: 0 !important;
+          line-height: 20px !important;
         }
-        .custom-header-select .ant-select-selection-placeholder {
+        .custom-vertical-select .ant-select-arrow {
+          margin-top: -1px;
+        }
+        .custom-vertical-select .ant-select-selection-placeholder {
           color: rgba(255,255,255,0.7) !important;
-          line-height: 22px !important;
+          text-align: right;
+          right: 0;
         }
-        .custom-header-select:hover .ant-select-selector {
-          background-color: rgba(255, 255, 255, 0.25) !important;
+        .custom-vertical-select:hover .ant-select-selector {
+          opacity: 0.9;
         }
         .ant-layout-header {
           padding-inline: 0 !important;
+        }
+        /* Override Ant Menu Background for Sidebar */
+        .ant-menu.ant-menu-dark {
+            background: #002840 !important;
         }
       `}</style>
     </Layout>

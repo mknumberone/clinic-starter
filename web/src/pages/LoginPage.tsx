@@ -22,7 +22,7 @@ const redirectByRole = (role: string, navigate: ReturnType<typeof useNavigate>) 
       navigate('/receptionist/dashboard', { replace: true });
       break;
     case 'PATIENT':
-      navigate('/patient/dashboard', { replace: true });
+      navigate('/', { replace: true });
       break;
     default:
       // Nếu role lạ, đá về login

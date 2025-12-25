@@ -1,5 +1,3 @@
-// src/pages/receptionist/ReceptionistProfile.tsx
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -10,6 +8,8 @@ import {
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useAuthStore } from '@/stores/authStore';
+import AvatarUpload from '@/components/upload/AvatarUpload';
+import { uploadService } from '@/services/upload.service'; // Import thêm uploadService
 import axiosInstance from '@/lib/axios';
 
 const { Title, Text } = Typography;
@@ -21,15 +21,16 @@ interface StaffProfile {
     full_name: string;
     role: string;
     branch_id?: string;
+    avatar?: string;
     branch?: {
         name: string;
     };
 }
 
-// Giả định backend có endpoint chung để sửa thông tin User qua /staff/:id
 interface UpdateProfileDto {
     full_name?: string;
     email?: string;
+    avatar?: string;
 }
 
 export default function ReceptionistProfile() {
@@ -37,17 +38,15 @@ export default function ReceptionistProfile() {
     const queryClient = useQueryClient();
     const [isEditing, setIsEditing] = useState(false);
     const [form] = Form.useForm();
+    const [avatarUrl, setAvatarUrl] = useState<string | undefined>(); // State avatar mới
 
-    // 1. Lấy thông tin hồ sơ (dùng API /auth/me để lấy profile đầy đủ)
+    // 1. Lấy thông tin hồ sơ
     const { data: profile, isLoading, error } = useQuery({
         queryKey: ['receptionist-profile', user?.id],
         queryFn: async () => {
             const response = await axiosInstance.get('/auth/me');
             const data = response.data;
-
-            // Thêm thông tin branch nếu user có branch_id
             if (data.branch_id) {
-                // Gọi API chi nhánh để lấy tên
                 const branchRes = await axiosInstance.get(`/branches/${data.branch_id}`);
                 data.branch = branchRes.data;
             }
@@ -56,23 +55,24 @@ export default function ReceptionistProfile() {
         enabled: !!user,
     });
 
-    // 2. Mutation cập nhật (Sử dụng API staff/users chung)
+    // 2. Mutation cập nhật
     const updateMutation = useMutation({
         mutationFn: (data: UpdateProfileDto) => {
-            // Sửa profile của chính mình qua API /staff/:id
             return axiosInstance.put(`/staff/${user?.id}`, data);
         },
         onSuccess: (response) => {
             message.success('Cập nhật hồ sơ thành công');
             queryClient.invalidateQueries({ queryKey: ['receptionist-profile'] });
 
-            if (response.data.full_name) {
+            if (response.data) {
                 updateUser({
                     ...user!,
-                    full_name: response.data.full_name,
+                    full_name: response.data.full_name || user?.full_name,
+                    avatar: response.data.avatar || user?.avatar,
                 });
             }
             setIsEditing(false);
+            setAvatarUrl(undefined);
         },
         onError: () => {
             message.error('Có lỗi xảy ra khi cập nhật hồ sơ');
@@ -93,10 +93,20 @@ export default function ReceptionistProfile() {
     const handleCancel = () => {
         setIsEditing(false);
         form.resetFields();
+        setAvatarUrl(undefined);
+    };
+
+    const handleAvatarUpload = (url: string) => {
+        setAvatarUrl(url);
+        message.success('Đã tải ảnh đại diện lên');
     };
 
     const handleSubmit = (values: any) => {
-        updateMutation.mutate(values);
+        const data: UpdateProfileDto = {
+            ...values,
+            avatar: avatarUrl,
+        };
+        updateMutation.mutate(data);
     };
 
     if (isLoading) {
@@ -106,7 +116,6 @@ export default function ReceptionistProfile() {
     if (error || !profile) {
         return <Alert message="Không tìm thấy hồ sơ" description="Vui lòng đăng xuất và đăng nhập lại." type="error" showIcon />;
     }
-
 
     return (
         <DashboardLayout>
@@ -122,7 +131,25 @@ export default function ReceptionistProfile() {
 
                 <Card className='shadow-md'>
                     <div className="flex items-center mb-6">
-                        <Avatar size={80} icon={<UserOutlined />} className="mr-4 bg-cyan-100 text-cyan-600" />
+                        {/* Avatar Logic */}
+                        {isEditing ? (
+                            <div className="mr-6">
+                                <AvatarUpload
+                                    currentAvatar={profile.avatar}
+                                    onUploadSuccess={handleAvatarUpload}
+                                    size={80}
+                                />
+                                <p className="text-center text-xs text-gray-500 mt-2">Đổi ảnh</p>
+                            </div>
+                        ) : (
+                            <Avatar
+                                size={80}
+                                src={profile.avatar ? uploadService.getFileUrl(profile.avatar) : undefined}
+                                icon={<UserOutlined />}
+                                className="mr-4 bg-cyan-100 text-cyan-600 border border-cyan-200"
+                            />
+                        )}
+
                         <div>
                             <Title level={4} style={{ margin: 0 }}>
                                 {profile.full_name}

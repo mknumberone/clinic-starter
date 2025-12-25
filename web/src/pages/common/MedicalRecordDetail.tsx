@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
     Descriptions, Table, Typography,
-    Button, Spin, Row, Col, Divider, Empty, Tag
+    Button, Spin, Row, Col, Divider, Empty, Tag, Image
 } from 'antd';
 import {
     ArrowLeftOutlined, PrinterOutlined
@@ -10,6 +10,7 @@ import {
 import dayjs from 'dayjs';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { appointmentService } from '@/services/appointment.service';
+import { uploadService } from '@/services/upload.service'; // <--- 1. Import service upload
 
 const { Title, Text } = Typography;
 
@@ -17,7 +18,7 @@ export default function MedicalRecordDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    // Gọi API lấy chi tiết lịch hẹn (bao gồm cả bệnh án và đơn thuốc)
+    // Gọi API lấy chi tiết lịch hẹn
     const { data: record, isLoading } = useQuery({
         queryKey: ['medical-record-detail', id],
         queryFn: () => appointmentService.getAppointmentById(id!),
@@ -26,7 +27,6 @@ export default function MedicalRecordDetail() {
 
     if (isLoading) return <Spin fullscreen tip="Đang tải bệnh án..." />;
 
-    // Kiểm tra nếu chưa có dữ liệu bệnh án
     if (!record || !record.medical_record) {
         return (
             <DashboardLayout>
@@ -40,6 +40,8 @@ export default function MedicalRecordDetail() {
 
     const { medical_record, prescriptions, patient, doctor, branch } = record;
     const clinicalData = medical_record.clinical_data || {};
+    // <--- 2. Lấy danh sách ảnh (nếu không có thì là mảng rỗng)
+    const attachments = (medical_record.attachments as string[]) || [];
 
     // Cấu hình cột cho bảng đơn thuốc
     const prescriptionColumns = [
@@ -76,30 +78,19 @@ export default function MedicalRecordDetail() {
         },
     ];
 
-    // Lấy đơn thuốc đầu tiên (nếu có)
     const currentPrescription = prescriptions && prescriptions.length > 0 ? prescriptions[0] : null;
 
     return (
         <DashboardLayout>
-            {/* CONTAINER NGOÀI: 
-        - bg-gray-100: Màu nền xám để làm nổi bật tờ giấy.
-        - px-[48px]: Cách mép màn hình trái phải đúng 48px.
-        - py-8: Cách trên dưới.
-      */}
             <div className="py-8 px-[48px] bg-gray-100 min-h-screen flex flex-col items-center">
 
-                {/* Toolbar (Nút bấm) */}
+                {/* Toolbar */}
                 <div className="w-full max-w-5xl flex justify-between mb-6 print:hidden">
                     <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>Trở về</Button>
                     <Button type="primary" icon={<PrinterOutlined />} onClick={() => window.print()}>In Phiếu Kết Quả</Button>
                 </div>
 
-                {/* TỜ GIẤY TRẮNG (A4):
-           - w-full: Giãn hết chiều rộng container cha.
-           - min-h-[297mm]: Chiều cao tối thiểu bằng khổ A4.
-           - px-20 (80px): Padding trái phải lớn để nội dung không sát mép.
-           - py-12 (48px): Padding trên dưới.
-        */}
+                {/* A4 Paper Container */}
                 <div
                     className="
               bg-white 
@@ -118,7 +109,6 @@ export default function MedicalRecordDetail() {
                     {/* 1. HEADER */}
                     <Row gutter={24} align="middle" className="border-b-2 border-gray-800 pb-6 mb-8">
                         <Col span={5}>
-                            {/* Logo giả lập */}
                             <div className="w-24 h-24 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-3xl mx-auto shadow-sm print:border print:border-gray-300">
                                 C
                             </div>
@@ -151,12 +141,9 @@ export default function MedicalRecordDetail() {
                             <Descriptions.Item label="Năm sinh">
                                 {dayjs(patient?.date_of_birth).format('YYYY')} ({dayjs().year() - dayjs(patient?.date_of_birth).year()} tuổi)
                             </Descriptions.Item>
-
                             <Descriptions.Item label="Giới tính">{patient?.gender === 'MALE' ? 'Nam' : 'Nữ'}</Descriptions.Item>
                             <Descriptions.Item label="Điện thoại">{patient?.user?.phone}</Descriptions.Item>
-
                             <Descriptions.Item label="Địa chỉ" span={2}>{patient?.address || '---'}</Descriptions.Item>
-
                             <Descriptions.Item label="Bác sĩ khám">{doctor?.user?.full_name}</Descriptions.Item>
                             <Descriptions.Item label="Chuyên khoa">
                                 <Tag color="blue">{doctor?.specialization?.name}</Tag>
@@ -206,6 +193,30 @@ export default function MedicalRecordDetail() {
                                     <Text strong className="text-xl text-indigo-900 print:text-black">{medical_record.diagnosis}</Text>
                                 </div>
                             </Col>
+
+                            {/* --- 3. PHẦN HIỂN THỊ HÌNH ẢNH MỚI THÊM --- */}
+                            {attachments.length > 0 && (
+                                <Col span={24}>
+                                    <Text type="secondary" className="block text-xs uppercase tracking-wider mb-3 font-semibold">Hình ảnh / Kết quả cận lâm sàng</Text>
+                                    <div className="flex gap-3 flex-wrap">
+                                        <Image.PreviewGroup>
+                                            {attachments.map((url, index) => (
+                                                <div key={index} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                                    <Image
+                                                        width={140}
+                                                        height={140}
+                                                        src={uploadService.getFileUrl(url)}
+                                                        className="object-cover"
+                                                        alt={`attachment-${index}`}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </Image.PreviewGroup>
+                                    </div>
+                                </Col>
+                            )}
+                            {/* ----------------------------------------- */}
+
                         </Row>
                     </div>
 
@@ -240,7 +251,7 @@ export default function MedicalRecordDetail() {
                         )}
                     </div>
 
-                    {/* 5. FOOTER (CHỮ KÝ) */}
+                    {/* 5. FOOTER */}
                     <Row>
                         <Col span={12}></Col>
                         <Col span={12} className="text-center">

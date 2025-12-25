@@ -21,6 +21,8 @@ import {
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useAuthStore } from '@/stores/authStore';
 import axiosInstance from '@/lib/axios';
+import AvatarUpload from '@/components/upload/AvatarUpload'; // Import
+import { uploadService } from '@/services/upload.service'; // Import
 
 const { Title, Text } = Typography;
 
@@ -30,11 +32,13 @@ interface AdminProfile {
   email?: string;
   full_name: string;
   role: string;
+  avatar?: string; // Thêm avatar
 }
 
 interface UpdateProfileDto {
   full_name?: string;
   email?: string;
+  avatar?: string; // Thêm avatar
 }
 
 export default function AdminProfile() {
@@ -42,6 +46,7 @@ export default function AdminProfile() {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [form] = Form.useForm();
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(); // State
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['admin-profile', user?.id],
@@ -54,20 +59,22 @@ export default function AdminProfile() {
 
   const updateMutation = useMutation({
     mutationFn: (data: UpdateProfileDto) => {
-      // Note: Backend might need an update profile endpoint for admin
-      return axiosInstance.put(`/users/${user?.id}`, data);
+      // Giữ nguyên endpoint /users/${id} như cũ của bạn
+      return axiosInstance.put(`/staff/${user?.id}`, data);
     },
     onSuccess: (response) => {
       message.success('Cập nhật hồ sơ thành công');
       queryClient.invalidateQueries({ queryKey: ['admin-profile'] });
-      if (response.data.full_name) {
+      if (response.data) {
         updateUser({
           ...user!,
-          full_name: response.data.full_name,
+          full_name: response.data.full_name || user?.full_name,
           email: response.data.email,
+          avatar: response.data.avatar || user?.avatar, // Update store
         });
       }
       setIsEditing(false);
+      setAvatarUrl(undefined);
     },
     onError: () => {
       message.error('Có lỗi xảy ra khi cập nhật hồ sơ');
@@ -87,12 +94,19 @@ export default function AdminProfile() {
   const handleCancel = () => {
     setIsEditing(false);
     form.resetFields();
+    setAvatarUrl(undefined);
+  };
+
+  const handleAvatarUpload = (url: string) => {
+    setAvatarUrl(url);
+    message.success('Đã tải ảnh đại diện lên');
   };
 
   const handleSubmit = (values: any) => {
     const data: UpdateProfileDto = {
       full_name: values.full_name,
       email: values.email,
+      avatar: avatarUrl,
     };
     updateMutation.mutate(data);
   };
@@ -135,12 +149,26 @@ export default function AdminProfile() {
 
         <Card>
           <div className="flex items-center mb-6">
-            <Avatar
-              size={80}
-              icon={<UserOutlined />}
-              className="mr-4"
-              style={{ backgroundColor: '#f56a00' }}
-            />
+            {/* Avatar Logic */}
+            {isEditing ? (
+              <div className="mr-6">
+                <AvatarUpload
+                  currentAvatar={profile.avatar}
+                  onUploadSuccess={handleAvatarUpload}
+                  size={80}
+                />
+                <p className="text-center text-xs text-gray-500 mt-2">Đổi ảnh</p>
+              </div>
+            ) : (
+              <Avatar
+                size={80}
+                src={profile.avatar ? uploadService.getFileUrl(profile.avatar) : undefined}
+                icon={<UserOutlined />}
+                className="mr-4"
+                style={{ backgroundColor: '#f56a00' }}
+              />
+            )}
+
             <div>
               <Title level={4} style={{ margin: 0 }}>
                 {profile.full_name}

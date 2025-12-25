@@ -2,7 +2,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Card, Table, Typography, Button, Descriptions, Tag, Divider, Spin, Alert } from 'antd';
 import { ArrowLeftOutlined, MedicineBoxOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import axiosInstance from '@/lib/axios';
 import dayjs from 'dayjs';
 
@@ -55,12 +54,11 @@ export default function PatientPrescriptionDetail() {
         }
     ];
 
-    if (isLoading) return <DashboardLayout><div className="flex justify-center p-12"><Spin size="large" /></div></DashboardLayout>;
-    if (isError || !prescription) return <DashboardLayout><Alert message="Không tìm thấy đơn thuốc" type="error" /></DashboardLayout>;
+    if (isLoading) return <div className="flex justify-center p-12"><Spin size="large" /></div>;
+    if (isError || !prescription) return <Alert message="Không tìm thấy đơn thuốc" type="error" />;
 
     return (
-        <DashboardLayout>
-            <div className="p-4 max-w-4xl mx-auto">
+        <div className="p-4 max-w-4xl mx-auto">
                 <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} className="mb-4">Quay lại</Button>
 
                 <Card className="shadow-md border-t-4 border-t-blue-600">
@@ -95,7 +93,6 @@ export default function PatientPrescriptionDetail() {
                         * Lời dặn: Uống thuốc đúng giờ, tái khám theo lịch hẹn. Nếu có dấu hiệu bất thường vui lòng liên hệ ngay với phòng khám.
                     </div>
                 </Card>
-            </div>
-        </DashboardLayout>
+        </div>
     );
 }

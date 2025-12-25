@@ -10,7 +10,6 @@ import {
     ClockCircleOutlined, EyeOutlined, MedicineBoxOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import dayjs from 'dayjs';
 import { useAuthStore } from '@/stores/authStore';
 import axiosInstance from '@/lib/axios';
@@ -138,17 +137,14 @@ export default function PatientAppointmentList() {
 
     if (isLoading) {
         return (
-            <DashboardLayout>
-                <div className="flex justify-center items-center h-96">
-                    <Spin size="large" tip="Đang tải lịch hẹn..." />
-                </div>
-            </DashboardLayout>
+            <div className="flex justify-center items-center h-96">
+                <Spin size="large" tip="Đang tải lịch hẹn..." />
+            </div>
         )
     }
 
     return (
-        <DashboardLayout>
-            <div className="p-6 min-h-screen bg-gray-50">
+        <div>
                 <div className="mb-6">
                     <Title level={2} className="m-0 text-indigo-800">Lịch hẹn của tôi</Title>
                     <Text type="secondary">Theo dõi trạng thái khám chữa bệnh</Text>
@@ -192,7 +188,6 @@ export default function PatientAppointmentList() {
                         ]}
                     />
                 </Card>
-            </div>
-        </DashboardLayout>
+        </div>
     );
 }

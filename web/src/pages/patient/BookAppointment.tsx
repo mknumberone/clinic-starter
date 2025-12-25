@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Spin, Alert, Button } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import BookingForm from '@/components/appointments/BookingForm';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useAuthStore } from '@/stores/authStore';
 import { patientService } from '@/services/patient.service';
 
@@ -37,19 +36,16 @@ export default function BookAppointmentPatient() {
 
     if (isLoading) {
         return (
-            <DashboardLayout>
-                <div className="flex justify-center items-center h-screen">
-                    <Spin size="large" tip="Đang tải hồ sơ bệnh nhân..." />
-                </div>
-            </DashboardLayout>
+            <div className="flex justify-center items-center h-screen">
+                <Spin size="large" tip="Đang tải hồ sơ bệnh nhân..." />
+            </div>
         );
     }
 
     // Trường hợp User này chưa có hồ sơ bệnh nhân (mới đăng ký account nhưng chưa update profile)
     if (error || !myPatientProfile) {
         return (
-            <DashboardLayout>
-                <div className="p-6">
+            <div>
                     <Alert
                         message="Chưa có hồ sơ bệnh nhân"
                         description="Tài khoản của bạn chưa có hồ sơ y tế. Vui lòng cập nhật thông tin cá nhân trước khi đặt lịch."
@@ -61,21 +57,18 @@ export default function BookAppointmentPatient() {
                             </Button>
                         }
                     />
-                </div>
-            </DashboardLayout>
+            </div>
         );
     }
 
     return (
-        <DashboardLayout>
-            <div className="p-6">
+        <div>
                 <h2 className="text-2xl font-bold mb-4 text-indigo-700">Đặt lịch khám bệnh</h2>
                 {/* Truyền ID bệnh nhân tìm được vào Form */}
                 <BookingForm
                     mode="PATIENT"
                     fixedPatientId={myPatientProfile.id}
                 />
-            </div>
-        </DashboardLayout>
+        </div>
     );
 }

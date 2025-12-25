@@ -9,6 +9,7 @@ export class MedicalRecordsService {
 
     async create(dto: CreateMedicalRecordDto) {
         // Dùng Transaction để đảm bảo tính toàn vẹn dữ liệu
+        // (Tạo bệnh án thành công thì mới cập nhật trạng thái lịch hẹn)
         return this.prisma.$transaction(async (tx) => {
             // 1. Tạo bản ghi bệnh án
             const record = await tx.medicalRecord.create({
@@ -18,12 +19,14 @@ export class MedicalRecordsService {
                     doctor_id: dto.doctor_id,
                     diagnosis: dto.diagnosis,
                     symptoms: dto.symptoms,
-                    clinical_data: dto.clinical_data || {},
+                    clinical_data: dto.clinical_data || {}, // Default object rỗng nếu không có
+                    // Lưu danh sách ảnh (mảng string URL) vào cột Json
+                    attachments: dto.attachments || [],
                 },
             });
 
-            // 2. Cập nhật trạng thái Lịch hẹn -> Đã khám xong (hoặc Đang kê đơn)
-            // Ở đây ta tạm để IN_PROGRESS để chuyển sang bước kê đơn
+            // 2. Cập nhật trạng thái Lịch hẹn -> Đang xử lý (IN_PROGRESS)
+            // Sau khi kê đơn xong có thể chuyển thành COMPLETED ở bước sau
             await tx.appointment.update({
                 where: { id: dto.appointment_id },
                 data: { status: AppointmentStatus.IN_PROGRESS },
@@ -41,13 +44,20 @@ export class MedicalRecordsService {
 
         if (!patient) return [];
 
-        // 2. Lấy danh sách bệnh án
+        // 2. Lấy danh sách bệnh án kèm thông tin chi tiết
         return this.prisma.medicalRecord.findMany({
             where: { patient_id: patient.id },
             include: {
-                doctor: { include: { user: true, specialization: true } },
-                appointment: true, // Để lấy ngày khám
-                prescriptions: true // Để đếm số thuốc (nếu cần)
+                doctor: {
+                    include: {
+                        user: {
+                            select: { full_name: true, phone: true } // Chỉ lấy tên và sđt bác sĩ
+                        },
+                        specialization: true
+                    }
+                },
+                appointment: true, // Để lấy ngày giờ khám
+                prescriptions: true // Để hiển thị xem có đơn thuốc hay chưa
             },
             orderBy: { created_at: 'desc' }
         });

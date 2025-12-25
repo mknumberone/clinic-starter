@@ -49,7 +49,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-indigo-500 via-purple-500 to-pink-500 p-5">
-      <Card 
+      <Card
         className="w-full max-w-md shadow-2xl"
         title={
           <div className="text-center">
@@ -73,9 +73,9 @@ export default function RegisterPage() {
                 { pattern: /^[0-9]{10}$/, message: 'Số điện thoại không hợp lệ!' }
               ]}
             >
-              <Input 
-                prefix={<PhoneOutlined />} 
-                placeholder="0987654321" 
+              <Input
+                prefix={<PhoneOutlined />}
+                placeholder="0987654321"
                 size="large"
               />
             </Form.Item>

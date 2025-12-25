@@ -8,7 +8,6 @@ import {
   PlusOutlined
 } from '@ant-design/icons';
 import { dashboardService } from '@/services/dashboard.service';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
@@ -21,17 +20,14 @@ export default function PatientDashboard() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
-        <div className="flex justify-center items-center h-96">
-          <Spin size="large" />
-        </div>
-      </DashboardLayout>
+      <div className="flex justify-center items-center h-96">
+        <Spin size="large" />
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {/* Quick Actions */}
         <Card>
           <Space wrap>
@@ -169,7 +165,6 @@ export default function PatientDashboard() {
             </Card>
           </Col>
         </Row>
-      </Space>
-    </DashboardLayout>
+    </Space>
   );
 }

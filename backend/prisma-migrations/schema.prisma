@@ -41,6 +41,8 @@ model User {
   doctor               Doctor?
   patient              Patient?
   branch               Branch?       @relation(fields: [branch_id], references: [id])
+  sent_messages               Message[]
+  conversation_participations ConversationParticipant[]
 }
 
 model Patient {
@@ -91,7 +93,7 @@ model Room {
   id                String          @id @default(uuid())
   name              String
   code              String          @unique
-  branch_id         String
+  branch_id         String?
   specialization_id String?
   floor             String?
   capacity          Int             @default(1)
@@ -101,7 +103,7 @@ model Room {
   building          String?
   appointments      Appointment[]
   shifts            DoctorShift[]
-  branch            Branch          @relation(fields: [branch_id], references: [id])
+  branch            Branch?         @relation(fields: [branch_id], references: [id])
   specialization    Specialization? @relation(fields: [specialization_id], references: [id])
 }
 
@@ -159,6 +161,7 @@ model MedicalRecord {
   diagnosis      String
   symptoms       String?
   clinical_data  Json?
+  attachments    Json?          @default("[]") // Lưu mảng các đường dẫn ảnh: [{url: "...", type: "image"}, ...]
   created_at     DateTime       @default(now())
   updated_at     DateTime       @updatedAt
   appointment    Appointment    @relation(fields: [appointment_id], references: [id])
@@ -184,7 +187,7 @@ model Prescription {
   doctor_id         String?
   notes             String?
   created_at        DateTime           @default(now())
-  branch_id         String
+  branch_id         String?
   medical_record_id String?
   appointment       Appointment?       @relation(fields: [appointment_id], references: [id])
   doctor            Doctor?            @relation(fields: [doctor_id], references: [id])
@@ -253,7 +256,7 @@ model Invoice {
   total_amount   Decimal       @default(0) @db.Decimal(10, 2)
   created_at     DateTime      @default(now())
   status         InvoiceStatus @default(UNPAID)
-  branch_id      String
+  branch_id      String?
   appointment    Appointment?  @relation(fields: [appointment_id], references: [id])
   patient        Patient?      @relation(fields: [patient_id], references: [id])
   items          InvoiceItem[]
@@ -289,6 +292,38 @@ model File {
   mime_type  String?
   size       Int?
   created_at DateTime @default(now())
+}
+
+// --- CHAT SYSTEM ---
+
+model Conversation {
+  id           String                    @id @default(uuid())
+  created_at   DateTime                  @default(now())
+  updated_at   DateTime                  @updatedAt
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  conversation_id String
+  user_id         String
+  joined_at       DateTime     @default(now())
+  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([conversation_id, user_id])
+}
+
+model Message {
+  id              String       @id @default(uuid())
+  conversation_id String
+  sender_id       String
+  content         String
+  created_at      DateTime     @default(now())
+  type            MessageType @default(TEXT) // <--- THÊM DÒNG NÀY
+  is_read         Boolean      @default(false)
+  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  sender          User         @relation(fields: [sender_id], references: [id])
 }
 
 model InventoryTransaction {
@@ -348,4 +383,10 @@ enum TransactionType {
   IMPORT
   EXPORT
   ADJUSTMENT
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
 }

@@ -120,6 +120,7 @@ export class StaffService {
                 phone: data.phone,
                 is_active: data.is_active, // Cập nhật trạng thái
                 branch_id: data.branch_id, // Cho phép cập nhật chi nhánh
+                avatar: data.avatar,
                 // email và role thường hạn chế cho sửa để tránh lỗi logic
             },
         });

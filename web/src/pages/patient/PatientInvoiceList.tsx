@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Table, Card, Tag, Button, Typography, Space } from 'antd';
 import { DollarOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import axiosInstance from '@/lib/axios';
 import dayjs from 'dayjs';
 
@@ -74,8 +73,7 @@ export default function PatientInvoiceList() {
     ];
 
     return (
-        <DashboardLayout>
-            <div className="p-6">
+        <div>
                 <div className="mb-6">
                     <Title level={3} className="text-blue-700 m-0">
                         <DollarOutlined /> Hóa Đơn & Thanh Toán
@@ -92,7 +90,6 @@ export default function PatientInvoiceList() {
                         locale={{ emptyText: 'Bạn chưa có hóa đơn nào' }}
                     />
                 </Card>
-            </div>
-        </DashboardLayout>
+        </div>
     );
 }

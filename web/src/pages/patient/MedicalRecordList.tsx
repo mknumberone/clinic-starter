@@ -3,7 +3,6 @@ import { Table, Card, Tag, Button, Space, Typography, Tooltip } from 'antd';
 import { EyeOutlined, FileTextOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { medicalRecordService } from '@/services/medical-record.service';
 
 const { Title } = Typography;
@@ -79,8 +78,7 @@ export default function MedicalRecordList() {
     ];
 
     return (
-        <DashboardLayout>
-            <div className="p-6">
+        <div>
                 <div className="mb-6 flex items-center gap-3">
                     <div className="p-3 bg-indigo-100 rounded-full text-indigo-600">
                         <FileTextOutlined style={{ fontSize: '24px' }} />
@@ -100,7 +98,6 @@ export default function MedicalRecordList() {
                         pagination={{ pageSize: 10 }}
                     />
                 </Card>
-            </div>
-        </DashboardLayout>
+        </div>
     );
 }

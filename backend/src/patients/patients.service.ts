@@ -71,6 +71,7 @@ export class PatientsService {
     gender?: string;
     minAge?: number;
     maxAge?: number;
+    filterUserId?: string;
   }) {
     const page = Number(params.page) || 1;
     const limit = Number(params.limit) || 10;
@@ -78,22 +79,38 @@ export class PatientsService {
 
     const where: any = {};
 
-    if (params.userRole === 'DOCTOR' && params.userId) {
-      const doctor = await this.prisma.doctor.findUnique({
-        where: { user_id: params.userId },
-      });
-
-      if (doctor) {
-        const appointments = await this.prisma.appointment.findMany({
-          where: { doctor_assigned_id: doctor.id },
-          select: { patient_id: true },
-          distinct: ['patient_id'],
+    // Filter by user_id from query param (explicit filter, highest priority)
+    if (params.filterUserId) {
+      where.user_id = params.filterUserId;
+    }
+    // If no explicit filter, apply role-based restrictions
+    else {
+      if (params.userRole === 'PATIENT' && params.userId) {
+        // Patients can only see their own record
+        where.user_id = params.userId;
+      } else if (params.userRole === 'DOCTOR' && params.userId) {
+        // Doctors see patients they have appointments with
+        const doctor = await this.prisma.doctor.findUnique({
+          where: { user_id: params.userId },
         });
-        const patientIds = appointments.map((apt) => apt.patient_id);
-        where.id = { in: patientIds };
-      } else {
-        where.id = { in: [] };
+
+        if (doctor) {
+          const appointments = await this.prisma.appointment.findMany({
+            where: { doctor_assigned_id: doctor.id },
+            select: { patient_id: true },
+            distinct: ['patient_id'],
+          });
+          const patientIds = appointments.map((apt) => apt.patient_id);
+          if (patientIds.length > 0) {
+            where.id = { in: patientIds };
+          } else {
+            where.id = { in: [] };
+          }
+        } else {
+          where.id = { in: [] };
+        }
       }
+      // ADMIN/BRANCH_MANAGER see all patients (no filter added)
     }
 
     if (params.search) {
@@ -207,19 +224,36 @@ export class PatientsService {
   }
 
   async updateProfile(patientId: string, userId: string, dto: UpdatePatientDto) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    const patient = await this.prisma.patient.findUnique({ 
+      where: { id: patientId },
+      include: { user: true }
+    });
+    
     if (!patient) throw new NotFoundException('Không tìm thấy hồ sơ bệnh nhân');
-    // Bỏ check userId nếu muốn Admin update được, ở đây giữ nguyên logic cũ của bạn
-    if (patient.user_id !== userId) throw new ForbiddenException('Bạn không có quyền cập nhật hồ sơ này');
+    
+    // Cho phép user update profile của chính họ hoặc Admin update
+    const isOwnProfile = patient.user_id === userId;
+    const requestUser = await this.prisma.user.findUnique({ where: { id: userId } });
+    const isAdmin = requestUser?.role === 'ADMIN' || requestUser?.role === 'BRANCH_MANAGER';
+    
+    if (!isOwnProfile && !isAdmin) {
+      throw new ForbiddenException('Bạn không có quyền cập nhật hồ sơ này');
+    }
 
-    if (dto.full_name) {
+    // Update user fields (full_name, avatar) if provided
+    const userUpdateData: any = {};
+    if (dto.full_name !== undefined) userUpdateData.full_name = dto.full_name;
+    if (dto.avatar !== undefined) userUpdateData.avatar = dto.avatar;
+    
+    if (Object.keys(userUpdateData).length > 0) {
       await this.prisma.user.update({
-        where: { id: userId },
-        data: { full_name: dto.full_name },
+        where: { id: patient.user_id },
+        data: userUpdateData,
       });
     }
 
-    const updated = await this.prisma.patient.update({
+    // Update patient fields
+    await this.prisma.patient.update({
       where: { id: patientId },
       data: {
         date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : undefined,
@@ -228,7 +262,22 @@ export class PatientsService {
         emergency_contact: dto.emergency_contact,
         insurance: dto.insurance,
       },
-      include: { user: true },
+    });
+
+    // Fetch complete updated profile with user data
+    const updated = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+      include: { 
+        user: {
+          select: {
+            id: true,
+            email: true,
+            phone: true,
+            full_name: true,
+            avatar: true,
+          }
+        }
+      },
     });
 
     return { message: 'Cập nhật hồ sơ thành công', patient: updated };

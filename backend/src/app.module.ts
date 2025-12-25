@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static'; // Cài đặt: npm i @nestjs/serve-static
+import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
@@ -16,6 +18,9 @@ import { RoomsModule } from './rooms/rooms.module'; // <--- 1. IMPORT FILE NÀY
 
 import { MedicalRecordsModule } from './medical-records/medical-records.module'; // <--- IMPORT NÀY
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
+import { UploadModule } from './upload/upload.module';
+
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -37,6 +42,12 @@ import { PrescriptionsModule } from './prescriptions/prescriptions.module';
     RoomsModule,
     MedicalRecordsModule,
     PrescriptionsModule,
+    UploadModule,
+    ChatModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'), // Trỏ ra thư mục uploads ở gốc dự án
+      serveRoot: '/uploads', // Đường dẫn truy cập: http://localhost:3000/uploads/ten-anh.jpg
+    }),
   ],
   controllers: [],
   providers: [],

@@ -2,7 +2,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Card, Table, Typography, Button, Tag, Divider, Spin, Row, Col, Alert, Image } from 'antd';
 import { ArrowLeftOutlined, DollarOutlined, CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import axiosInstance from '@/lib/axios';
 import dayjs from 'dayjs';
 
@@ -54,11 +53,10 @@ export default function PatientInvoiceDetail() {
         }
     ];
 
-    if (isLoading) return <DashboardLayout><div className="flex justify-center p-12"><Spin /></div></DashboardLayout>;
+    if (isLoading) return <div className="flex justify-center p-12"><Spin /></div>;
 
     return (
-        <DashboardLayout>
-            <div className="p-4 max-w-5xl mx-auto">
+        <div className="p-4 max-w-5xl mx-auto">
                 <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} className="mb-4">Quay lại</Button>
 
                 <Row gutter={24}>
@@ -157,7 +155,6 @@ export default function PatientInvoiceDetail() {
                         </Card>
                     </Col>
                 </Row>
-            </div>
-        </DashboardLayout>
+        </div>
     );
 }

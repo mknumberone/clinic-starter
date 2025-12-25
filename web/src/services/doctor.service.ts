@@ -102,7 +102,14 @@ export const doctorService = {
   },
 
   getDoctorShifts: (doctorId: string, params?: { date?: string }): Promise<any> => {
-    return axiosInstance.get(`/doctors/${doctorId}/shifts`, { params }).then((res: any) => res.data);
+    return axiosInstance.get(`/doctors/${doctorId}/shifts`, { params }).then((res: any) => {
+      // Xử lý response an toàn
+      const data = res.data;
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.data)) return data.data;
+      if (data && Array.isArray(data.shifts)) return data.shifts;
+      return [];
+    });
   },
 
   // ---> CẬP NHẬT HÀM NÀY: Xử lý mảng an toàn cho Chuyên khoa <---

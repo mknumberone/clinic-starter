@@ -1,5 +1,3 @@
-// src/pages/manager/ManagerProfile.tsx
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -11,6 +9,8 @@ import {
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useAuthStore } from '@/stores/authStore';
 import axiosInstance from '@/lib/axios';
+import AvatarUpload from '@/components/upload/AvatarUpload'; // Import AvatarUpload
+import { uploadService } from '@/services/upload.service'; // Import uploadService
 
 const { Title, Text } = Typography;
 
@@ -21,16 +21,16 @@ interface ManagerProfile {
     full_name: string;
     role: string;
     branch_id?: string;
+    avatar?: string; // Thêm trường avatar
     branch?: {
         name: string;
     };
 }
 
-// Giả định backend có endpoint chung để sửa thông tin User (hoặc /staff/:id)
 interface UpdateProfileDto {
     full_name?: string;
     email?: string;
-    // Các trường khác như password_hash, v.v.
+    avatar?: string; // Thêm trường avatar vào DTO
 }
 
 export default function ManagerProfile() {
@@ -38,13 +38,13 @@ export default function ManagerProfile() {
     const queryClient = useQueryClient();
     const [isEditing, setIsEditing] = useState(false);
     const [form] = Form.useForm();
+    const [avatarUrl, setAvatarUrl] = useState<string | undefined>(); // State lưu avatar mới
 
-    // 1. Lấy thông tin hồ sơ (dùng API /auth/me để lấy profile đầy đủ)
+    // 1. Lấy thông tin hồ sơ
     const { data: profile, isLoading, error } = useQuery({
         queryKey: ['manager-profile', user?.id],
         queryFn: async () => {
             const response = await axiosInstance.get('/auth/me');
-            // Thêm thông tin branch nếu user có branch_id
             const data = response.data;
             if (data.branch_id) {
                 const branchRes = await axiosInstance.get(`/branches/${data.branch_id}`);
@@ -55,24 +55,25 @@ export default function ManagerProfile() {
         enabled: !!user,
     });
 
-    // 2. Mutation cập nhật (Sử dụng API staff/users chung)
+    // 2. Mutation cập nhật
     const updateMutation = useMutation({
         mutationFn: (data: UpdateProfileDto) => {
-            // Sửa profile của chính mình qua API /staff/:id
             return axiosInstance.put(`/staff/${user?.id}`, data);
         },
         onSuccess: (response) => {
             message.success('Cập nhật hồ sơ thành công');
             queryClient.invalidateQueries({ queryKey: ['manager-profile'] });
 
-            // Cập nhật lại tên hiển thị trên Header
-            if (response.data.full_name) {
+            // Cập nhật lại Auth Store
+            if (response.data) {
                 updateUser({
                     ...user!,
-                    full_name: response.data.full_name,
+                    full_name: response.data.full_name || user?.full_name,
+                    avatar: response.data.avatar || user?.avatar, // Cập nhật avatar trong store
                 });
             }
             setIsEditing(false);
+            setAvatarUrl(undefined); // Reset state
         },
         onError: () => {
             message.error('Có lỗi xảy ra khi cập nhật hồ sơ');
@@ -93,10 +94,20 @@ export default function ManagerProfile() {
     const handleCancel = () => {
         setIsEditing(false);
         form.resetFields();
+        setAvatarUrl(undefined);
+    };
+
+    const handleAvatarUpload = (url: string) => {
+        setAvatarUrl(url);
+        message.success('Đã tải ảnh đại diện lên');
     };
 
     const handleSubmit = (values: any) => {
-        updateMutation.mutate(values);
+        const data: UpdateProfileDto = {
+            ...values,
+            avatar: avatarUrl, // Gửi kèm avatar nếu có thay đổi
+        };
+        updateMutation.mutate(data);
     };
 
     if (isLoading) {
@@ -106,7 +117,6 @@ export default function ManagerProfile() {
     if (error || !profile) {
         return <Alert message="Không tìm thấy hồ sơ" description="Vui lòng đăng xuất và đăng nhập lại." type="error" showIcon />;
     }
-
 
     return (
         <DashboardLayout>
@@ -122,7 +132,25 @@ export default function ManagerProfile() {
 
                 <Card className='shadow-md'>
                     <div className="flex items-center mb-6">
-                        <Avatar size={80} icon={<UserOutlined />} className="mr-4 bg-orange-100 text-orange-600" />
+                        {/* Logic hiển thị Avatar: Edit Mode vs View Mode */}
+                        {isEditing ? (
+                            <div className="mr-6">
+                                <AvatarUpload
+                                    currentAvatar={profile.avatar}
+                                    onUploadSuccess={handleAvatarUpload}
+                                    size={80}
+                                />
+                                <p className="text-center text-xs text-gray-500 mt-2">Đổi ảnh</p>
+                            </div>
+                        ) : (
+                            <Avatar
+                                size={80}
+                                src={profile.avatar ? uploadService.getFileUrl(profile.avatar) : undefined}
+                                icon={<UserOutlined />}
+                                className="mr-4 bg-orange-100 text-orange-600 border border-orange-200"
+                            />
+                        )}
+
                         <div>
                             <Title level={4} style={{ margin: 0 }}>
                                 {profile.full_name}

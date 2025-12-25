@@ -46,10 +46,18 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
-      window.dispatchEvent(new Event('auth-logout'));
-      window.location.href = '/login';
+      const token = localStorage.getItem('access_token');
+      const requestUrl = error.config?.url || '';
+
+      // Only perform global logout/redirect when the user is authenticated
+      // and when the 401 did NOT happen on auth endpoints (login/send-otp).
+      // This ensures the login page can display server error messages (e.g. "Tài khoản đã bị khoá").
+      if (token && !requestUrl.includes('/auth/login') && !requestUrl.includes('/auth/send-otp')) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+        window.dispatchEvent(new Event('auth-logout'));
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

@@ -21,6 +21,7 @@ export default function ManagerDashboard() {
         enabled: !!user?.branch_id,
     });
 
+    // <<<<<<< HEAD
     // 2. Lấy danh sách lịch hẹn sắp tới
     const { data: upcomingAppointments, isLoading: loadingAppts } = useQuery({
         queryKey: ['manager-upcoming-appointments'],
@@ -66,6 +67,10 @@ export default function ManagerDashboard() {
         { title: 'Bác sĩ', render: (r: any) => r.doctor?.user?.full_name || 'Đang xếp' },
         { title: 'Phòng', dataIndex: ['room', 'code'], render: (c: string) => <Tag>{c}</Tag> },
     ];
+    // =======
+    // // Debug: Check dashboard structure
+    // console.log('Dashboard data:', dashboard);
+    // // >>>>>>> 9a79bf37bb3c16df3400143c05117f4a818e9768
 
     return (
         <DashboardLayout>
@@ -84,6 +89,7 @@ export default function ManagerDashboard() {
                                 prefix={<CalendarOutlined />}
                                 valueStyle={{ color: '#1890ff' }}
                             />
+
                         </Card>
                     </Col>
                     <Col xs={24} sm={8}>

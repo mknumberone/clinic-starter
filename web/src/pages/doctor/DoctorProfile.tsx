@@ -25,6 +25,8 @@ import {
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useAuthStore } from '@/stores/authStore';
 import axiosInstance from '@/lib/axios';
+import AvatarUpload from '@/components/upload/AvatarUpload';
+import { uploadService } from '@/services/upload.service';
 
 const { Title, Text } = Typography;
 
@@ -51,30 +53,38 @@ interface DoctorProfile {
 interface UpdateProfileDto {
   title?: string;
   biography?: string;
+  avatar?: string;
 }
 
 export default function DoctorProfile() {
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [form] = Form.useForm();
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
 
   // 1. Lấy thông tin hồ sơ (Logic đã sửa: Tìm theo User ID)
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ['my-doctor-profile-detail', user?.id],
     queryFn: async () => {
-      // Gọi API lấy danh sách bác sĩ để tìm người khớp với user hiện tại
+      // Gọi API lấy danh sách bác sĩ với limit lớn để tìm chính mình
       const res = await axiosInstance.get('/doctors', {
-        params: { limit: 100 }
+        params: { 
+          limit: 1000
+        }
       });
 
       const doctors = Array.isArray(res.data) ? res.data : (res.data?.data || []);
 
       // Tìm bác sĩ có user_id trùng với user đang đăng nhập
-      const myProfile = doctors.find((d: any) => d.user?.id === user?.id || d.user_id === user?.id);
+      const myProfile = doctors.find((d: any) => {
+        return d.user?.id === user?.id || d.user_id === user?.id;
+      });
 
-      if (!myProfile) throw new Error('Tài khoản chưa liên kết với hồ sơ bác sĩ');
-
+      if (!myProfile) {
+        throw new Error('Tài khoản chưa liên kết với hồ sơ bác sĩ');
+      }
+      
       // Gọi chi tiết để lấy đầy đủ thông tin (nếu API list thiếu trường)
       const detailRes = await axiosInstance.get(`/doctors/${myProfile.id}`);
       return detailRes.data as DoctorProfile;
@@ -86,10 +96,18 @@ export default function DoctorProfile() {
     mutationFn: (data: UpdateProfileDto) => {
       return axiosInstance.put(`/doctors/${profile?.id}`, data);
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       message.success('Cập nhật hồ sơ thành công');
       queryClient.invalidateQueries({ queryKey: ['my-doctor-profile-detail'] });
+      // Update avatar in auth store if changed
+      if (response.data?.user?.avatar) {
+        updateUser({
+          ...user!,
+          avatar: response.data.user.avatar,
+        });
+      }
       setIsEditing(false);
+      setAvatarUrl(undefined); // Reset avatarUrl state
     },
     onError: () => {
       message.error('Có lỗi xảy ra khi cập nhật hồ sơ');
@@ -115,8 +133,14 @@ export default function DoctorProfile() {
     const data: UpdateProfileDto = {
       title: values.title,
       biography: values.biography,
+      avatar: avatarUrl,
     };
     updateMutation.mutate(data);
+  };
+
+  const handleAvatarUpload = (url: string) => {
+    setAvatarUrl(url);
+    message.success('Đã tải ảnh đại diện lên');
   };
 
   // --- RENDER ---
@@ -160,12 +184,23 @@ export default function DoctorProfile() {
 
         <Card className="shadow-md">
           <div className="flex items-center mb-8 p-4 bg-gray-50 rounded-lg">
-            <Avatar
-              size={100}
-              src={profile.user.avatar}
-              icon={<UserOutlined />}
-              className="mr-6 border-4 border-white shadow-sm bg-indigo-200 text-indigo-600"
-            />
+            {isEditing ? (
+              <div className="mr-6">
+                <AvatarUpload
+                  currentAvatar={profile.user.avatar}
+                  onUploadSuccess={handleAvatarUpload}
+                  size={120}
+                />
+                <p className="text-center text-sm text-gray-500 mt-2">Click để đổi ảnh</p>
+              </div>
+            ) : (
+              <Avatar
+                size={120}
+                src={profile.user.avatar ? uploadService.getFileUrl(profile.user.avatar) : undefined}
+                icon={<UserOutlined />}
+                className="mr-6 border-4 border-white shadow-sm bg-indigo-200 text-indigo-600"
+              />
+            )}
             <div>
               <Title level={3} style={{ margin: 0 }}>
                 {profile.title ? `${profile.title}. ` : 'Bác sĩ '} {profile.user.full_name}

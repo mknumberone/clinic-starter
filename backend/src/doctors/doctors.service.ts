@@ -93,6 +93,7 @@ export class DoctorsService {
             full_name: true,
             phone: true,
             email: true,
+            avatar: true,
             branch_id: true, // Lấy branch để form edit hiển thị
           },
         },
@@ -180,6 +181,7 @@ export class DoctorsService {
           update: {
             full_name: dto.full_name,
             phone: dto.phone,
+            avatar: dto.avatar,
             branch_id: dto.branch_id,
           }
         }

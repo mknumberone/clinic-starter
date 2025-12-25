@@ -1,90 +1,150 @@
-import axiosInstance from '@/lib/axios';
+import axiosInstance from '../lib/axios';
 
-// --- DTO Interfaces ---
-export interface GetAvailableSlotsDto {
-  branch_id: string;
-  date: string; // YYYY-MM-DD
-  doctor_id?: string;
-  specialization_id?: string;
-}
-
-export interface CreateAppointmentPayload {
-  patient_id: string;
-  branch_id: string;
-  doctor_assigned_id?: string;
-  room_id?: string;
-  start_time: string; // ISO String
-  end_time: string;   // ISO String
-  appointment_type?: string;
-  notes?: string;
-  // Các trường cho định kỳ (Backend xử lý logic này)
-  is_recurring?: boolean;
-  recurring_count?: number;
-  interval_months?: number;
-}
-
+// --- INTERFACES ---
 export interface Appointment {
   id: string;
-  patient?: { user: { full_name: string; phone: string; avatar?: string } };
-  doctor?: { title: string; code: string; user: { full_name: string }; specialization?: { name: string } };
-  branch?: { name: string; address: string };
-  room?: { name: string; code: string };
+  patient_id: string;
+  doctor_assigned_id: string;
+  room_id: string;
   start_time: string;
   end_time: string;
   status: string;
-  appointment_type?: string;
+  appointment_type: string;
   notes?: string;
+  branch?: { name: string; address: string; };
+  doctor?: { code: string; title: string; user: { full_name: string; }; };
+  room?: { name: string; code: string; };
+  medical_record?: any;
+  prescriptions?: any[];
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  address: string;
+}
+
+export interface Specialty {
+  id: string;
+  name: string;
+}
+
+export interface Doctor {
+  id: string;
+  user: { full_name: string; };
+  specialty_id: string;
+}
+
+export interface GetAppointmentsParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  doctorId?: string;
+  patientId?: string;
+  roomId?: string;
+  branchId?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export const appointmentService = {
-  // 1. API Lấy danh sách
-  getAppointments: async (params: any) => {
-    const response = await axiosInstance.get('/appointments', { params });
-    return {
-      data: Array.isArray(response.data) ? response.data : (response.data.data || []),
-      pagination: response.data.pagination || {}
-    };
+  // --- 1. CÁC HÀM CŨ (GIỮ NGUYÊN ĐỂ KHÔNG LỖI APP) ---
+  getMyAppointments: () => {
+    return axiosInstance.get('/appointments').then((res) => res.data);
   },
 
-  // 2. API Lấy khung giờ trống (ĐÃ UPDATE: Nhận Object DTO)
-  getAvailableSlots: async (params: GetAvailableSlotsDto) => {
-    // Backend API nhận query params
-    const response = await axiosInstance.get('/appointments/available-slots', {
-      params: {
-        branch_id: params.branch_id,
-        date: params.date,
-        doctor_id: params.doctor_id,
-        specialization_id: params.specialization_id
+  getAppointmentById: (id: string) => {
+    return axiosInstance.get(`/appointments/${id}`).then((res) => res.data);
+  },
+
+  // Lấy danh sách lịch hẹn với bộ lọc (cho Admin, Doctor, Manager)
+  getAppointments: (params: GetAppointmentsParams = {}) => {
+    const queryParams: any = {};
+    
+    if (params.page) queryParams.page = params.page;
+    if (params.limit) queryParams.limit = params.limit;
+    if (params.status) queryParams.status = params.status;
+    if (params.doctorId) queryParams.doctorId = params.doctorId;
+    if (params.patientId) queryParams.patientId = params.patientId;
+    if (params.roomId) queryParams.roomId = params.roomId;
+    if (params.branchId) queryParams.branchId = params.branchId;
+    if (params.startDate) queryParams.startDate = params.startDate;
+    if (params.endDate) queryParams.endDate = params.endDate;
+
+    return axiosInstance.get('/appointments', { params: queryParams }).then((res) => {
+      // Xử lý response an toàn
+      const data = res.data;
+      if (data && data.data && Array.isArray(data.data)) {
+        return {
+          data: data.data,
+          pagination: data.pagination || { total: data.data.length, page: params.page || 1, limit: params.limit || 10 }
+        };
       }
+      if (Array.isArray(data)) {
+        return {
+          data: data,
+          pagination: { total: data.length, page: params.page || 1, limit: params.limit || 10 }
+        };
+      }
+      return { data: [], pagination: { total: 0, page: 1, limit: 10 } };
     });
-    return response.data; // Trả về mảng string ['08:00', '08:30'...]
   },
 
-  // 3. API Tạo lịch hẹn (ĐÃ UPDATE: Type Payload chuẩn)
-  createAppointment: async (data: CreateAppointmentPayload) => {
-    const response = await axiosInstance.post('/appointments', data);
-    return response.data;
+  // Đổi trạng thái lịch hẹn
+  changeStatus: (id: string, status: string) => {
+    return axiosInstance.put(`/appointments/${id}/status`, { status }).then((res) => res.data);
   },
 
-  // 4. API Lấy chi tiết
-  getAppointmentById: async (id: string) => {
-    const response = await axiosInstance.get(`/appointments/${id}`);
-    return response.data;
+  // Hủy lịch hẹn
+  cancelAppointment: (id: string, reason?: string) => {
+    return axiosInstance.post(`/appointments/${id}/cancel`, { reason }).then((res) => res.data);
   },
 
-  // 5. Các hàm bổ trợ khác (Update, Cancel, Status...)
-  updateAppointment: async (id: string, data: any) => {
-    const response = await axiosInstance.put(`/appointments/${id}`, data);
-    return response.data;
+  // --- 2. CÁC HÀM MỚI CHO BOOKING MODAL (CẦN THÊM VÀO ĐÂY) ---
+
+  // Lấy danh sách chi nhánh
+  getBranches: (): Promise<Branch[]> => {
+    return axiosInstance.get('/branches').then(res => res.data);
   },
 
-  changeStatus: async (id: string, status: string, reason?: string) => {
-    const response = await axiosInstance.put(`/appointments/${id}/status`, { status, reason });
-    return response.data;
+  // Lấy danh sách chuyên khoa
+  getSpecialties: (): Promise<Specialty[]> => {
+    // Endpoint backend có thể là /specializations hoặc /specialties, hãy check lại swagger nếu lỗi 404
+    return axiosInstance.get('/specializations')
+      .then((res) => res.data)
+      .catch(() => []); // Trả về rỗng nếu lỗi
   },
 
-  cancelAppointment: async (id: string, reason: string) => {
-    const response = await axiosInstance.post(`/appointments/${id}/cancel`, { reason });
-    return response.data;
-  }
+  // Lấy danh sách bác sĩ (có lọc)
+  getDoctors: (branchId?: string, specialtyId?: string): Promise<Doctor[]> => {
+    const params: any = {};
+    if (branchId) params.branch_id = branchId;
+    if (specialtyId) {
+      params.specialization_id = specialtyId; // Thử cả 2 trường hợp tên field
+      params.specialty_id = specialtyId;
+    }
+
+    return axiosInstance.get('/doctors', { params }).then((res) => {
+      // Xử lý linh hoạt cấu trúc trả về
+      if (res.data && Array.isArray(res.data.data)) return res.data.data;
+      if (Array.isArray(res.data)) return res.data;
+      return [];
+    });
+  },
+
+  // Lấy giờ khám trống ( QUAN TRỌNG: Hàm này nhận 4 tham số)
+  getAvailableSlots: (branchId: string, specialtyId: string, date: string, doctorId?: string) => {
+    const params = {
+      branch_id: branchId,
+      specialization_id: specialtyId,
+      date: date,
+      doctor_id: doctorId || undefined
+    };
+    return axiosInstance.get('/appointments/available-slots', { params }).then(res => res.data);
+  },
+
+  // Tạo lịch hẹn
+  createAppointment: (data: any) => {
+    return axiosInstance.post('/appointments', data).then(res => res.data);
+  },
 };

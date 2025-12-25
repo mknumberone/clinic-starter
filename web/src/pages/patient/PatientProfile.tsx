@@ -20,10 +20,11 @@ import {
   SaveOutlined,
   CloseOutlined,
 } from '@ant-design/icons';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useAuthStore } from '@/stores/authStore';
 import axiosInstance from '@/lib/axios';
 import dayjs from 'dayjs';
+import AvatarUpload from '@/components/upload/AvatarUpload';
+import { uploadService } from '@/services/upload.service';
 
 const { Title, Text } = Typography;
 
@@ -40,6 +41,7 @@ interface PatientProfile {
     phone: string;
     email?: string;
     full_name: string;
+    avatar?: string;
   };
 }
 
@@ -50,6 +52,7 @@ interface UpdateProfileDto {
   address?: string;
   emergency_contact?: string;
   insurance?: string;
+  avatar?: string;
 }
 
 export default function PatientProfile() {
@@ -57,12 +60,18 @@ export default function PatientProfile() {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [form] = Form.useForm();
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['patient-profile', user?.id],
     queryFn: async () => {
-      // Get patient info
-      const patientsResponse = await axiosInstance.get('/patients', { params: { limit: 1 } });
+      // Get patient info for the logged-in user
+      const patientsResponse = await axiosInstance.get('/patients', { 
+        params: { 
+          user_id: user?.id, // Filter by logged-in user's ID
+          limit: 1 
+        } 
+      });
       const patients = patientsResponse.data.data;
       if (patients && patients.length > 0) {
         const patientId = patients[0].id;
@@ -85,9 +94,11 @@ export default function PatientProfile() {
         updateUser({
           ...user!,
           full_name: response.data.patient.user.full_name,
+          avatar: response.data.patient.user.avatar, // Update avatar in auth store
         });
       }
       setIsEditing(false);
+      setAvatarUrl(undefined); // Reset avatarUrl state
     },
     onError: () => {
       message.error('Có lỗi xảy ra khi cập nhật hồ sơ');
@@ -121,37 +132,38 @@ export default function PatientProfile() {
       address: values.address,
       emergency_contact: values.emergency_contact,
       insurance: values.insurance,
+      avatar: avatarUrl,
     };
     updateMutation.mutate(data);
   };
 
+  const handleAvatarUpload = (url: string) => {
+    setAvatarUrl(url);
+    message.success('Đã tải ảnh đại diện lên');
+  };
+
   if (isLoading) {
     return (
-      <DashboardLayout>
-        <div className="p-6">
-          <Card loading />
-        </div>
-      </DashboardLayout>
+      <div>
+        <Card loading />
+      </div>
     );
   }
 
   if (!profile) {
     return (
-      <DashboardLayout>
-        <div className="p-6">
-          <Card>
-            <div className="text-center py-8 text-red-500">
-              Không tìm thấy thông tin hồ sơ
-            </div>
-          </Card>
-        </div>
-      </DashboardLayout>
+      <div>
+        <Card>
+          <div className="text-center py-8 text-red-500">
+            Không tìm thấy thông tin hồ sơ
+          </div>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="p-6">
+    <div>
         <div className="mb-6 flex items-center justify-between">
           <Title level={2}>Hồ sơ của tôi</Title>
           {!isEditing && (
@@ -163,7 +175,23 @@ export default function PatientProfile() {
 
         <Card>
           <div className="flex items-center mb-6">
-            <Avatar size={80} icon={<UserOutlined />} className="mr-4" />
+            {isEditing ? (
+              <div className="mr-4">
+                <AvatarUpload
+                  currentAvatar={profile.user.avatar}
+                  onUploadSuccess={handleAvatarUpload}
+                  size={100}
+                />
+                <p className="text-center text-sm text-gray-500 mt-2">Click để đổi ảnh</p>
+              </div>
+            ) : (
+              <Avatar
+                size={100}
+                src={profile.user.avatar ? uploadService.getFileUrl(profile.user.avatar) : undefined}
+                icon={<UserOutlined />}
+                className="mr-4"
+              />
+            )}
             <div>
               <Title level={4} style={{ margin: 0 }}>
                 {profile.user.full_name}
@@ -265,7 +293,6 @@ export default function PatientProfile() {
             </Form>
           )}
         </Card>
-      </div>
-    </DashboardLayout>
+    </div>
   );
 }

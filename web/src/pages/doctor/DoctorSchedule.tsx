@@ -17,7 +17,7 @@ import {
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useAuthStore } from '@/stores/authStore';
-import axiosInstance from '@/lib/axios';
+import { doctorService } from '@/services/doctor.service';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -26,47 +26,59 @@ export default function DoctorSchedule() {
   const { user } = useAuthStore();
 
   // 1. Lấy thông tin Bác sĩ
-  const { data: doctorProfile, isLoading: loadingProfile } = useQuery({
+  const { data: doctorProfile, isLoading: loadingProfile, isError: profileError } = useQuery({
     queryKey: ['my-doctor-schedule-profile', user?.id],
     queryFn: async () => {
       console.log("--- DEBUG TÌM BÁC SĨ ---");
       console.log("User ID đang đăng nhập:", user?.id);
 
-      const res = await axiosInstance.get('/doctors', {
-        params: { limit: 100 }
-      });
+      try {
+        // Sử dụng service thay vì gọi trực tiếp axiosInstance
+        const response = await doctorService.getDoctors({ limit: 100 });
+        // doctorService.getDoctors() trả về { data: [...], pagination: {...} }
+        const doctors = response?.data || [];
+        console.log("Danh sách bác sĩ tải về:", doctors);
 
-      const doctors = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-      console.log("Danh sách bác sĩ tải về:", doctors);
+        // Tìm bác sĩ
+        const myProfile = doctors.find((d: any) => d.user?.id === user?.id || d.user_id === user?.id);
 
-      // Tìm bác sĩ
-      const myProfile = doctors.find((d: any) => d.user?.id === user?.id || d.user_id === user?.id);
+        if (myProfile) {
+          console.log("=> ĐÃ TÌM THẤY BÁC SĨ:", myProfile.user.full_name);
+        } else {
+          console.error("=> KHÔNG TÌM THẤY BÁC SĨ KHỚP VỚI ID:", user?.id);
+        }
 
-      if (myProfile) {
-        console.log("=> ĐÃ TÌM THẤY BÁC SĨ:", myProfile.user.full_name);
-      } else {
-        console.error("=> KHÔNG TÌM THẤY BÁC SĨ KHỚP VỚI ID:", user?.id);
-        // (Tạm thời) Fallback lấy bác sĩ đầu tiên để bạn không bị chặn màn hình khi dev
-        // Bỏ comment dòng dưới nếu bạn muốn ép hiển thị dữ liệu bất kỳ để test
-        // if (doctors.length > 0) return doctors[0];
+        if (!myProfile) throw new Error('Tài khoản chưa liên kết với hồ sơ bác sĩ');
+        return myProfile;
+      } catch (error: any) {
+        console.error("Lỗi khi tìm bác sĩ:", error);
+        throw error;
       }
-
-      if (!myProfile) throw new Error('Tài khoản chưa liên kết với hồ sơ bác sĩ');
-      return myProfile;
     },
     enabled: !!user?.id,
+    retry: 1,
   });
 
   // 2. Lấy Lịch trực
-  const { data: shifts, isLoading: loadingShifts } = useQuery({
+  const { data: shifts, isLoading: loadingShifts, isError: shiftsError, error: shiftsErrorDetail } = useQuery({
     queryKey: ['my-shifts', doctorProfile?.id],
     queryFn: async () => {
       if (!doctorProfile?.id) return [];
       console.log("Gọi API lấy lịch cho Doctor ID:", doctorProfile.id);
-      const res = await axiosInstance.get(`/doctors/${doctorProfile.id}/shifts`);
-      return Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      try {
+        const data = await doctorService.getDoctorShifts(doctorProfile.id);
+        // Xử lý response an toàn
+        if (Array.isArray(data)) return data;
+        if (data && Array.isArray(data.data)) return data.data;
+        if (data && Array.isArray(data.shifts)) return data.shifts;
+        return [];
+      } catch (error: any) {
+        console.error("Lỗi khi lấy lịch trực:", error);
+        throw error;
+      }
     },
     enabled: !!doctorProfile?.id,
+    retry: 1,
   });
 
   const getShiftStatus = (start: string, end: string) => {
@@ -152,14 +164,38 @@ export default function DoctorSchedule() {
           </Card>
         )}
 
-        {/* Error State */}
-        {!loadingProfile && !doctorProfile && (
+        {/* Error State - Không tìm thấy bác sĩ */}
+        {!loadingProfile && (!doctorProfile || profileError) && (
           <Alert
             message="Không tìm thấy thông tin Bác sĩ"
             description={
               <div>
                 Tài khoản của bạn chưa được liên kết với hồ sơ bác sĩ.
                 <br /><b>Cách khắc phục:</b> Hãy thử Đăng xuất và Đăng nhập lại.
+                {profileError && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Chi tiết lỗi: {(profileError as any)?.response?.data?.message || (profileError as any)?.message || 'Lỗi không xác định'}
+                  </div>
+                )}
+              </div>
+            }
+            type="error"
+            showIcon
+            className="mb-4"
+          />
+        )}
+
+        {/* Error State - Lỗi khi lấy lịch trực */}
+        {doctorProfile && shiftsError && (
+          <Alert
+            message="Lỗi kết nối"
+            description={
+              <div>
+                Không thể tải dữ liệu lịch trực. Vui lòng thử lại sau.
+                <br />
+                <span className="text-xs text-gray-500">
+                  {(shiftsErrorDetail as any)?.response?.data?.message || (shiftsErrorDetail as any)?.message || 'Lỗi không xác định'}
+                </span>
               </div>
             }
             type="error"
@@ -169,7 +205,7 @@ export default function DoctorSchedule() {
         )}
 
         {/* Data Table */}
-        {doctorProfile && !loadingShifts && (
+        {doctorProfile && !loadingShifts && !shiftsError && (
           <Card className="shadow-md rounded-lg overflow-hidden" bodyStyle={{ padding: 0 }}>
             <Table
               columns={columns}
