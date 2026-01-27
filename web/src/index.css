@@ -18,3 +18,19 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* Container dùng chung cho toàn bộ landing pages */
+.landing-container {
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 50px;
+  padding-right: 50px;
+}
+
+@media (max-width: 1024px) {
+  .landing-container {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}

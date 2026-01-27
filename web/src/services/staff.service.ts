@@ -7,6 +7,7 @@ export interface Staff {
     email: string;
     role: 'ADMIN' | 'BRANCH_MANAGER' | 'DOCTOR' | 'RECEPTIONIST' | 'PATIENT';
     branch_id?: string;
+    avatar?: string;
     branch?: {
         id: string;
         name: string;

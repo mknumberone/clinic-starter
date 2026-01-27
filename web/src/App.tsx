@@ -35,6 +35,8 @@ import StaffList from './pages/admin/StaffList';
 import BranchManagement from './pages/admin/BranchManagement';
 import ShiftManagement from './pages/admin/ShiftManagement';
 import MedicationManagement from './pages/admin/MedicationManagement';
+import AttendanceTracking from './pages/admin/AttendanceTracking';
+import NewsManagement from './pages/admin/NewsManagement';
 
 // --- DOCTOR PAGES ---
 import DoctorDashboard from './pages/doctor/Dashboard';
@@ -62,6 +64,7 @@ import PatientPrescriptionList from './pages/patient/PatientPrescriptionList';
 import PatientPrescriptionDetail from './pages/patient/PatientPrescriptionDetail';
 import PatientInvoiceList from './pages/patient/PatientInvoiceList';
 import PatientInvoiceDetail from './pages/patient/PatientInvoiceDetail';
+import SpecialtyDetailPage from './pages/landing/SpecialtyDetailPage';
 
 // --- COMMON PAGES ---
 import MedicalRecordDetail from './pages/common/MedicalRecordDetail';
@@ -70,9 +73,16 @@ import ChatManagement from '@/pages/common/ChatManagement';
 import AboutPage from './pages/landing/AboutPage'; // <--- IMPORT MỚI
 import FacilitiesPage from './pages/landing/FacilitiesPage'; // <--- IMPORT MỚI
 import DoctorsPage from './pages/landing/DoctorsPage'; // <--- IMPORT MỚI
+import NewsPage from './pages/landing/NewsPage';
+import ContactPage from './pages/landing/ContactPage';
 import ChatWidget from './components/chat/ChatWidget';
 import AuthModal from './components/auth/AuthModal';
 import BookingModal from './components/booking/BookingModal';
+import VerifyEmail from './pages/auth/VerifyEmail';
+import PendingVerification from './pages/auth/PendingVerification';
+
+
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -145,9 +155,15 @@ function App() {
             <Route path="/about" element={<AboutPage />} />  {/* <--- THÊM ROUTE NÀY */}
             <Route path="/facilities" element={<FacilitiesPage />} /> {/* <--- THÊM DÒNG NÀY */}
             <Route path="/doctors" element={<DoctorsPage />} /> {/* <--- THÊM ROUTE NÀY */}
+            <Route path="/news" element={<NewsPage />} />
+            <Route path="/news/:slug" element={<NewsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/pending-verification" element={<PendingVerification />} />
+            <Route path="/specialties/:id" element={<SpecialtyDetailPage />} />
 
             {/* Route dùng chung, Layout tự động đổi theo người xem */}
             <Route
@@ -312,6 +328,24 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            <Route
+              path="/admin/attendance"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN', 'BRANCH_MANAGER']}>
+                  <AttendanceTracking />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/news"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <NewsManagement />
+                </ProtectedRoute>
+              }
+            />
+
 
             {/* ================= DOCTOR ROUTES ================= */}
             <Route

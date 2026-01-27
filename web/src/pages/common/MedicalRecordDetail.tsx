@@ -8,39 +8,47 @@ import {
     ArrowLeftOutlined, PrinterOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+
+// Import các Layout
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import PatientLayout from '@/components/layouts/PatientLayout';
+
 import { appointmentService } from '@/services/appointment.service';
-import { uploadService } from '@/services/upload.service'; // <--- 1. Import service upload
+import { uploadService } from '@/services/upload.service';
+import { useAuthStore } from '@/stores/authStore';
 
 const { Title, Text } = Typography;
 
 export default function MedicalRecordDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuthStore();
 
-    // Gọi API lấy chi tiết lịch hẹn
+    const isPatient = user?.role === 'PATIENT';
+
     const { data: record, isLoading } = useQuery({
         queryKey: ['medical-record-detail', id],
         queryFn: () => appointmentService.getAppointmentById(id!),
         enabled: !!id,
     });
 
+    const SelectedLayout = isPatient ? PatientLayout : DashboardLayout;
+
     if (isLoading) return <Spin fullscreen tip="Đang tải bệnh án..." />;
 
     if (!record || !record.medical_record) {
         return (
-            <DashboardLayout>
+            <SelectedLayout>
                 <div className="p-10 text-center">
                     <Empty description="Chưa có dữ liệu bệnh án cho lịch hẹn này" />
                     <Button onClick={() => navigate(-1)} className="mt-4">Quay lại</Button>
                 </div>
-            </DashboardLayout>
+            </SelectedLayout>
         );
     }
 
     const { medical_record, prescriptions, patient, doctor, branch } = record;
     const clinicalData = medical_record.clinical_data || {};
-    // <--- 2. Lấy danh sách ảnh (nếu không có thì là mảng rỗng)
     const attachments = (medical_record.attachments as string[]) || [];
 
     // Cấu hình cột cho bảng đơn thuốc
@@ -81,39 +89,48 @@ export default function MedicalRecordDetail() {
     const currentPrescription = prescriptions && prescriptions.length > 0 ? prescriptions[0] : null;
 
     return (
-        <DashboardLayout>
-            <div className="py-8 px-[48px] bg-gray-100 min-h-screen flex flex-col items-center">
+        <SelectedLayout>
+            {/* PHẦN THAY ĐỔI: 
+                - isPatient: px-2 (giảm lề khi là bệnh nhân)
+                - Staff: px-4 (giảm từ px-[48px] xuống px-4 để sát mép Sidebar hơn)
+            */}
+            <div className={`py-4 bg-gray-100 min-h-screen flex flex-col items-center w-full ${isPatient ? 'px-2' : 'px-4'}`}>
 
-                {/* Toolbar */}
-                <div className="w-full max-w-5xl flex justify-between mb-6 print:hidden">
+                {/* Toolbar: Mở rộng max-width lên full để sát mép */}
+                <div className="w-full max-w-[98%] flex justify-between mb-4 print:hidden">
                     <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>Trở về</Button>
                     <Button type="primary" icon={<PrinterOutlined />} onClick={() => window.print()}>In Phiếu Kết Quả</Button>
                 </div>
 
-                {/* A4 Paper Container */}
+                {/* PHẦN THAY ĐỔI CONTAINER GIẤY:
+                    - max-w-[98%]: Để sát mép trái (sidebar) và mép phải màn hình
+                    - px-12: Giảm padding bên trong tờ giấy một chút để nội dung rộng hơn
+                */}
                 <div
                     className="
-              bg-white 
-              shadow-xl 
-              w-full 
-              min-h-[297mm] 
-              px-20 py-12 
-              print:shadow-none 
-              print:w-full 
-              print:p-12 
-              print:m-0
-            "
+                        bg-white 
+                        shadow-xl 
+                        w-full 
+                        max-w-[98%] 
+                        min-h-[297mm] 
+                        px-12 py-10 
+                        print:shadow-none 
+                        print:w-full 
+                        print:p-12 
+                        print:m-0
+                        rounded-sm
+                    "
                     id="medical-record-print"
                 >
 
                     {/* 1. HEADER */}
                     <Row gutter={24} align="middle" className="border-b-2 border-gray-800 pb-6 mb-8">
-                        <Col span={5}>
-                            <div className="w-24 h-24 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-3xl mx-auto shadow-sm print:border print:border-gray-300">
+                        <Col span={4}>
+                            <div className="w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-3xl mx-auto shadow-sm print:border print:border-gray-300">
                                 C
                             </div>
                         </Col>
-                        <Col span={19}>
+                        <Col span={20}>
                             <div className="text-center">
                                 <Title level={4} style={{ marginBottom: 4, textTransform: 'uppercase', color: '#374151', letterSpacing: '1px' }}>
                                     {branch?.name || 'PHÒNG KHÁM ĐA KHOA CLINIC'}
@@ -121,7 +138,7 @@ export default function MedicalRecordDetail() {
                                 <Text className="block text-gray-500 text-sm mb-1">{branch?.address}</Text>
                                 <Text className="block text-gray-500 text-sm">Hotline: <span className="font-semibold text-gray-700">{branch?.phone || '1900 xxxx'}</span></Text>
 
-                                <Title level={2} style={{ marginTop: 24, marginBottom: 0, color: '#1d4ed8', textTransform: 'uppercase', fontWeight: 800 }}>
+                                <Title level={2} style={{ marginTop: 16, marginBottom: 0, color: '#1d4ed8', textTransform: 'uppercase', fontWeight: 800 }}>
                                     Phiếu Kết Quả Khám Bệnh
                                 </Title>
                             </div>
@@ -134,7 +151,7 @@ export default function MedicalRecordDetail() {
                             <Text strong className="uppercase text-blue-800 print:text-black">I. Hành chính</Text>
                         </div>
 
-                        <Descriptions column={2} size="middle" labelStyle={{ fontWeight: 600, color: '#4b5563', width: '140px' }} contentStyle={{ color: '#111827', fontWeight: 500 }}>
+                        <Descriptions column={2} size="middle" labelStyle={{ fontWeight: 600, color: '#4b5563', width: '160px' }} contentStyle={{ color: '#111827', fontWeight: 500 }}>
                             <Descriptions.Item label="Họ tên">
                                 <span className="uppercase font-bold text-lg">{patient?.user?.full_name}</span>
                             </Descriptions.Item>
@@ -194,17 +211,17 @@ export default function MedicalRecordDetail() {
                                 </div>
                             </Col>
 
-                            {/* --- 3. PHẦN HIỂN THỊ HÌNH ẢNH MỚI THÊM --- */}
+                            {/* HIỂN THỊ HÌNH ẢNH */}
                             {attachments.length > 0 && (
                                 <Col span={24}>
                                     <Text type="secondary" className="block text-xs uppercase tracking-wider mb-3 font-semibold">Hình ảnh / Kết quả cận lâm sàng</Text>
-                                    <div className="flex gap-3 flex-wrap">
+                                    <div className="flex gap-4 flex-wrap">
                                         <Image.PreviewGroup>
                                             {attachments.map((url, index) => (
                                                 <div key={index} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                                                     <Image
-                                                        width={140}
-                                                        height={140}
+                                                        width={180}
+                                                        height={180}
                                                         src={uploadService.getFileUrl(url)}
                                                         className="object-cover"
                                                         alt={`attachment-${index}`}
@@ -215,8 +232,6 @@ export default function MedicalRecordDetail() {
                                     </div>
                                 </Col>
                             )}
-                            {/* ----------------------------------------- */}
-
                         </Row>
                     </div>
 
@@ -232,7 +247,7 @@ export default function MedicalRecordDetail() {
                                     dataSource={currentPrescription.items}
                                     columns={prescriptionColumns}
                                     pagination={false}
-                                    size="small"
+                                    size="middle"
                                     bordered
                                     rowKey="id"
                                     className="mb-4"
@@ -275,6 +290,6 @@ export default function MedicalRecordDetail() {
 
                 </div>
             </div>
-        </DashboardLayout>
+        </SelectedLayout>
     );
 }

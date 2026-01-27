@@ -29,9 +29,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
 
   login: async (token, user) => {
-    await secureStorage.setItem('access_token', token);
+    // Đảm bảo token là string trước khi lưu vào SecureStore
+    const tokenString = typeof token === 'string' ? token : String(token || '');
+    if (!tokenString) {
+      throw new Error('Token không hợp lệ');
+    }
+    await secureStorage.setItem('access_token', tokenString);
     await secureStorage.setItem('user', JSON.stringify(user));
-    set({ token, user, isAuthenticated: true });
+    set({ token: tokenString, user, isAuthenticated: true });
   },
 
   logout: async () => {

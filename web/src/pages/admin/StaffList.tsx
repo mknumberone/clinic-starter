@@ -10,8 +10,11 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { staffService, type Staff } from '@/services/staff.service';
 import { branchesService } from '@/services/branches.service'; // Import thêm service chi nhánh
 import CreateStaffModal from '@/components/modals/CreateStaffModal';
+import { Avatar, } from 'antd';
+import { UserOutlined, } from '@ant-design/icons';
 import EditStaffModal from '@/components/modals/EditStaffModal';
 import dayjs from 'dayjs';
+import { uploadService } from '@/services/upload.service';
 
 const { Title } = Typography;
 
@@ -96,6 +99,21 @@ export default function StaffList() {
     };
 
     const columns = [
+        {
+            title: 'Ảnh',
+            dataIndex: 'avatar',
+            key: 'avatar',
+            width: 80,
+            render: (avatar?: string) => (
+                <Avatar
+                    // Dùng getFileUrl để hiển thị ảnh từ Cloudinary hoặc tệp local
+                    src={avatar ? uploadService.getFileUrl(avatar) : undefined}
+                    icon={<UserOutlined />}
+                    size="large"
+                    className="shadow-sm border border-gray-100"
+                />
+            ),
+        },
         {
             title: 'Họ và tên',
             dataIndex: 'full_name',

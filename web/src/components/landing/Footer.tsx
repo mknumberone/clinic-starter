@@ -1,11 +1,11 @@
-﻿import { EnvironmentFilled, PhoneFilled, MailFilled, FacebookFilled, YoutubeFilled, LinkedinFilled } from '@ant-design/icons';
+import { EnvironmentFilled, PhoneFilled, MailFilled, FacebookFilled, YoutubeFilled, LinkedinFilled } from '@ant-design/icons';
 import { Button } from 'antd';
 
 export default function Footer() {
     return (
         <footer className="bg-[#001e2e] text-gray-300 pt-20 pb-10 border-t border-white/5">
             {/* CONTAINER ĐỒNG BỘ */}
-            <div className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-20">
+            <div className="landing-container">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
                     {/* Cột 1 */}
                     <div>

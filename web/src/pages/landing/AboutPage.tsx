@@ -31,8 +31,8 @@ export default function AboutPage() {
             <Navbar />
 
             {/* 1. HERO BANNER */}
-            <section className="pt-36 pb-20 bg-gradient-to-r from-[#003553] to-[#001e2e] text-white relative overflow-hidden">
-                <div className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-20 relative z-10 text-center">
+            <section className="mt-[90px] pt-24 pb-20 bg-gradient-to-r from-[#003553] to-[#001e2e] text-white relative overflow-hidden">
+                <div className="landing-container relative z-10 text-center">
                     <h1 className="text-4xl md:text-6xl font-extrabold mb-6 animate-fade-in-up">
                         Về DYM Medical Center
                     </h1>
@@ -47,7 +47,7 @@ export default function AboutPage() {
 
             {/* 2. CÂU CHUYỆN & GIỚI THIỆU */}
             <section className="py-20 bg-white">
-                <div className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-20">
+                <div className="landing-container">
                     <div className="flex flex-col lg:flex-row items-center gap-16">
                         <div className="lg:w-1/2">
                             <img
@@ -92,7 +92,7 @@ export default function AboutPage() {
 
             {/* 3. TẦM NHÌN & SỨ MỆNH */}
             <section className="py-20 bg-[#f0f8ff]">
-                <div className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-20 text-center">
+                <div className="landing-container text-center">
                     <h2 className="text-3xl md:text-4xl font-extrabold text-[#003553] mb-12">Tầm Nhìn & Sứ Mệnh</h2>
                     <Row gutter={[32, 32]}>
                         <Col xs={24} md={8}>

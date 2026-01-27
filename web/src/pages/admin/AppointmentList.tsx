@@ -14,6 +14,7 @@ import {
   message,
   Dropdown,
   Alert,
+  Modal,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -177,27 +178,34 @@ export default function AppointmentList() {
       width: 80,
       fixed: 'right' as const,
       render: (_: unknown, record: Appointment) => {
-        // --- LOGIC TRẠNG THÁI MỚI (LINH HOẠT HƠN) ---
-        const s = record.status; // SCHEDULED, CONFIRMED...
+        const s = record.status;
 
-        // Điều kiện để hiện các nút
+        // --- 1. LOGIC KIỂM TRA NGÀY (MỚI THÊM) ---
+        // So sánh ngày bắt đầu của lịch hẹn với ngày hiện tại
+        const isToday = dayjs(record.start_time).isSame(dayjs(), 'day');
+
+        // Nếu muốn cho phép khám cả các lịch quá khứ (lịch bù) thì dùng logic này:
+        // const isAvailableDate = dayjs(record.start_time).isSameOrBefore(dayjs(), 'day');
+        // Nhưng theo yêu cầu "phải đến đúng ngày", tôi sẽ dùng isSame:
+
+
+        // --- 2. LOGIC TRẠNG THÁI CŨ ---
         const canConfirm = s === 'SCHEDULED';
         const canComplete = s === 'CONFIRMED' || s === 'IN_PROGRESS';
-        // Có thể hủy hoặc đánh vắng mặt nếu chưa hoàn thành/đã hủy
         const canCancelOrNoShow = !['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(s);
 
         const items = [
           {
             key: 'view',
-            label: 'Xem chi tiết',
+            label: 'Xem hồ sơ bệnh án',
             icon: <EyeOutlined />,
             onClick: () => {
-              // Nếu là Admin -> xem trang admin
-              // Nếu là Doctor -> xem trang patient detail (giao diện đẹp hơn)
-              const path = user?.role === 'DOCTOR'
-                ? `/patient/appointments/${record.id}`
-                : `/admin/appointments/${record.id}`;
-              navigate(path);
+              if (user?.role === 'DOCTOR') {
+                const patientId = record.patient_id || record.patient?.id;
+                navigate(`/admin/patients/${patientId}`);
+              } else {
+                navigate(`/admin/appointments/${record.id}`);
+              }
             },
           },
           { type: 'divider' },
@@ -205,16 +213,20 @@ export default function AppointmentList() {
             key: 'confirm',
             label: 'Xác nhận',
             icon: <CheckCircleOutlined className="text-blue-500" />,
-            disabled: !canConfirm,
+            // Logic: Phải là SCHEDULED VÀ Phải đúng ngày mới cho xác nhận
+            // Nếu khách đến sai ngày -> Nút này bị ẩn -> Lễ tân buộc phải dùng nút Hủy
+            disabled: !canConfirm || !isToday,
+            title: !isToday ? 'Chưa đến ngày hẹn' : '',
             onClick: () => handleStatusChange(record.id, 'CONFIRMED'),
           },
-          // Trong mảng items của Dropdown menu:
           {
             key: 'examine',
             label: 'Khám bệnh',
             icon: <MedicineBoxOutlined className="text-indigo-600" />,
-            // Chỉ hiện khi trạng thái là CONFIRMED hoặc IN_PROGRESS
-            disabled: !['CONFIRMED', 'IN_PROGRESS'].includes(record.status),
+            // Logic: Phải CONFIRMED/IN_PROGRESS VÀ Phải đúng ngày
+            // Bác sĩ không thể bấm khám nếu chưa đến ngày
+            disabled: !['CONFIRMED', 'IN_PROGRESS'].includes(record.status) || !isToday,
+            title: !isToday ? 'Chỉ được khám đúng ngày hẹn' : '', // Tooltip hiển thị khi hover (cơ bản)
             onClick: () => navigate(`/doctor/examination/${record.id}`),
           },
           {
@@ -237,7 +249,24 @@ export default function AppointmentList() {
             icon: <CloseCircleOutlined className="text-red-500" />,
             danger: true,
             disabled: !canCancelOrNoShow,
-            onClick: () => handleStatusChange(record.id, 'CANCELLED'),
+            // --- SỬA ĐOẠN NÀY ---
+            onClick: () => {
+              Modal.confirm({
+                title: 'Xác nhận hủy lịch hẹn',
+                content: (
+                  <div>
+                    Bạn có chắc chắn muốn hủy lịch hẹn của bệnh nhân <b>{record.patient?.user.full_name}</b> không?
+                    <br />
+                    <span className="text-gray-500 text-xs">Hành động này sẽ cập nhật trạng thái lịch thành "Đã hủy".</span>
+                  </div>
+                ),
+                okText: 'Đồng ý hủy',
+                okType: 'danger',
+                cancelText: 'Quay lại',
+                onOk: () => handleStatusChange(record.id, 'CANCELLED'),
+              });
+            },
+            // --------------------
           },
         ];
 
@@ -250,6 +279,7 @@ export default function AppointmentList() {
     },
   ];
 
+  //   
   return (
     <DashboardLayout>
       <div className="p-6">

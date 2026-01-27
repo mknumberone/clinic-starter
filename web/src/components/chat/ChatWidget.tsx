@@ -4,7 +4,6 @@ import {
     MessageOutlined,
     SendOutlined,
     CloseOutlined,
-    UserOutlined,
     CustomerServiceOutlined,
     PaperClipOutlined,
     FileOutlined,
@@ -15,7 +14,6 @@ import { useSocketStore } from '@/stores/socketStore';
 import { useAuthStore } from '@/stores/authStore';
 import { uploadService } from '@/services/upload.service';
 import axiosInstance from '@/lib/axios';
-import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
 interface Message {
@@ -47,7 +45,23 @@ export default function ChatWidget() {
     const originalTitle = useRef(document.title);
     const isStaff = ['ADMIN', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(user?.role || '');
 
-    // --- 1. XỬ LÝ CHỌN FILE ---
+    // --- 1. HÀM HELPER: ĐÁNH DẤU ĐÃ ĐỌC (XỬ LÝ UI + API) ---
+    const markAsRead = async () => {
+        // 1. Reset số badge ngay lập tức trên UI
+        setUnreadCount(0);
+        updateTabTitle(0);
+
+        // 2. Gọi API báo server (nếu đã có conversationId)
+        if (conversationId) {
+            try {
+                await axiosInstance.put(`/chat/read/${conversationId}`);
+            } catch (error) {
+                console.error("Lỗi mark read:", error);
+            }
+        }
+    };
+
+    // --- 2. XỬ LÝ CHỌN FILE ---
     const handleBeforeUpload = (file: File) => {
         const isLt5M = file.size / 1024 / 1024 < 5;
         if (!isLt5M) {
@@ -60,17 +74,15 @@ export default function ChatWidget() {
 
     const handleRemoveFile = () => setSelectedFile(null);
 
-    // --- 2. GỬI TIN NHẮN (OPTIMISTIC UPDATE) ---
+    // --- 3. GỬI TIN NHẮN (OPTIMISTIC UPDATE) ---
     const handleSend = async () => {
         if ((!inputValue.trim() && !selectedFile) || !socket || !conversationId) return;
 
         setIsSending(true);
         try {
-            // Chuẩn bị dữ liệu gửi
             let contentToSend = inputValue;
             let typeToSend: 'TEXT' | 'IMAGE' | 'FILE' = 'TEXT';
 
-            // Xử lý upload nếu có file
             if (selectedFile) {
                 const formData = new FormData();
                 formData.append('file', selectedFile);
@@ -81,9 +93,8 @@ export default function ChatWidget() {
                 typeToSend = selectedFile.type.startsWith('image/') ? 'IMAGE' : 'FILE';
             }
 
-            // --- QUAN TRỌNG: HIỂN THỊ NGAY LẬP TỨC (Không chờ Server) ---
             const optimisticMsg: Message = {
-                id: `temp-${Date.now()}`, // ID tạm
+                id: `temp-${Date.now()}`,
                 conversation_id: conversationId,
                 sender_id: user?.id || '',
                 content: contentToSend,
@@ -99,14 +110,12 @@ export default function ChatWidget() {
             setMessages(prev => [...prev, optimisticMsg]);
             scrollToBottom();
 
-            // Sau đó mới gửi Socket
             socket.emit('sendMessage', {
                 conversationId,
                 content: contentToSend,
                 type: typeToSend
             });
 
-            // Reset Input
             setInputValue('');
             setSelectedFile(null);
 
@@ -118,7 +127,7 @@ export default function ChatWidget() {
         }
     };
 
-    // --- CÁC LOGIC KHÁC ---
+    // --- 4. CÁC LOGIC KHÁC ---
     const updateTabTitle = (count: number) => {
         if (count > 0) document.title = `(${count}) 🔴 Tin nhắn mới - Clinic`;
         else document.title = originalTitle.current;
@@ -142,28 +151,7 @@ export default function ChatWidget() {
     }, [isStaff]);
 
     useEffect(() => {
-        // Debug: Log trạng thái hiện tại
-        console.log('ChatWidget: useEffect triggered', { 
-            hasUser: !!user, 
-            hasSocket: !!socket, 
-            isConnected, 
-            userRole: user?.role 
-        });
-
-        if (!user) {
-            console.log('ChatWidget: No user yet');
-            return;
-        }
-
-        if (!socket) {
-            console.log('ChatWidget: No socket yet - waiting for connection...');
-            return;
-        }
-        
-        if (!isConnected) {
-            console.log('ChatWidget: Socket exists but not connected yet. Socket state:', socket.connected);
-            return;
-        }
+        if (!user || !socket || !isConnected) return;
 
         originalTitle.current = document.title;
         refreshUnreadCount();
@@ -174,49 +162,58 @@ export default function ChatWidget() {
                     const res = await axiosInstance.get('/chat/conversations');
                     res.data.forEach((c: any) => socket.emit('joinRoom', c.id));
                 } else {
-                    console.log('ChatWidget: Initializing patient chat...');
                     const res = await axiosInstance.post('/chat/start-support');
-                    console.log('ChatWidget: Conversation created:', res.data.id);
                     setConversationId(res.data.id);
                     socket.emit('joinRoom', res.data.id);
                 }
-            } catch (e) { 
-                console.error('ChatWidget: Error initializing chat:', e);
-                message.error('Không thể khởi tạo chat. Vui lòng thử lại.');
+            } catch (e) {
+                console.error('Error initializing chat:', e);
             }
         };
         initChat();
     }, [user, isStaff, socket, isConnected]);
 
-    // --- LẮNG NGHE SOCKET ---
+    // --- 5. LẮNG NGHE SOCKET (ĐÃ SỬA LOGIC BADGE) ---
     useEffect(() => {
         if (!socket) return;
         const handleNewMessage = (msg: Message) => {
             const isIncoming = msg.sender_id !== user?.id;
 
-            // NẾU LÀ TIN NHẮN ĐẾN (Của người khác) -> HIỂN THỊ
-            // NẾU LÀ TIN NHẮN CỦA MÌNH -> BỎ QUA (Vì đã hiển thị ở handleSend rồi)
+            // A. NẾU LÀ KHÁCH HÀNG & CHAT ĐANG MỞ & TIN NHẮN TỚI
             if (isOpen && !isStaff && isIncoming) {
                 setMessages((prev) => [...prev, msg]);
                 scrollToBottom();
-                axiosInstance.put(`/chat/read/${conversationId}`);
+
+                // [FIX] Gọi hàm markAsRead ngay lập tức -> Đảm bảo badge = 0
+                markAsRead();
             }
 
-            if (isIncoming && (!isOpen || isStaff)) setUnreadCount(prev => prev + 1);
+            // B. NẾU LÀ KHÁCH HÀNG & CHAT ĐANG ĐÓNG -> TĂNG BADGE
+            if (isIncoming && !isOpen && !isStaff) {
+                setUnreadCount(prev => prev + 1);
+            }
+
+            // C. LOGIC CHO STAFF (Giữ nguyên hoặc xử lý riêng)
+            if (isIncoming && isStaff) {
+                setUnreadCount(prev => prev + 1);
+            }
         };
         socket.on('newMessage', handleNewMessage);
         return () => { socket.off('newMessage', handleNewMessage); };
     }, [socket, conversationId, isOpen, user, isStaff]);
 
+    // --- 6. TOGGLE OPEN (ĐÃ SỬA) ---
     const handleToggleOpen = () => {
-        setUnreadCount(0);
-        updateTabTitle(0);
+        // Luôn reset badge về 0 khi bấm nút
+        markAsRead();
+
         if (isStaff) {
             if (user?.role === 'ADMIN') navigate('/admin/messages');
             else if (user?.role === 'BRANCH_MANAGER') navigate('/manager/messages');
             else navigate('/receptionist/messages');
             return;
         }
+
         if (!isOpen) {
             setIsOpen(true);
             if (conversationId) {
@@ -224,9 +221,13 @@ export default function ChatWidget() {
                 axiosInstance.get('/chat/messages', { params: { conversationId } })
                     .then(res => { setMessages(res.data); scrollToBottom(); })
                     .finally(() => setLoading(false));
-                axiosInstance.put(`/chat/read/${conversationId}`);
+
+                // Gọi thêm lần nữa cho chắc chắn
+                markAsRead();
             }
-        } else setIsOpen(false);
+        } else {
+            setIsOpen(false);
+        }
     };
 
     const scrollToBottom = () => setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -278,9 +279,12 @@ export default function ChatWidget() {
                             const url = uploadService.getFileUrl(msg.content);
                             return (
                                 <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[75%] !px-4 !py-2 text-[15px] shadow-sm rounded-3xl ${isMe ? 'bg-indigo-600 text-white rounded-tr-sm' : 'bg-white text-gray-800 rounded-tl-sm'}`}>
+                                    {/* [FIX] Thêm padding và break-words để giống giao diện admin */}
+                                    <div className={`max-w-[75%] !px-4 !py-3 text-[15px] shadow-sm rounded-3xl leading-relaxed break-words ${isMe ? 'bg-indigo-600 text-white rounded-tr-sm' : 'bg-white text-gray-800 rounded-tl-sm'}`}>
                                         {msg.type === 'IMAGE' ? (
-                                            <img src={url} className="rounded-lg max-w-[200px] cursor-pointer" onClick={() => window.open(url)} />
+                                            <a href={url} target="_blank" rel="noreferrer">
+                                                <img src={url} className="rounded-lg max-w-[200px] cursor-pointer hover:opacity-90" />
+                                            </a>
                                         ) : msg.type === 'FILE' ? (
                                             <a href={url} target="_blank" className="underline flex gap-1 items-center" style={{ color: 'inherit' }}><FileOutlined /> {msg.content}</a>
                                         ) : msg.content}

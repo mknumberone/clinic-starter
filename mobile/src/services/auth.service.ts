@@ -10,14 +10,14 @@ export interface LoginDto {
 }
 
 export interface LoginResponse {
-  token: string;
+  access_token: string; // Backend trả về access_token, không phải token
   user: {
     id: string;
     phone: string;
     full_name: string;
     email?: string;
     role: 'PATIENT' | 'DOCTOR' | 'ADMIN';
-     branch_id?: string | null;
+    branch_id?: string | null;
     patient_id?: string | null;
     doctor_id?: string | null;
   };

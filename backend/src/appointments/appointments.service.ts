@@ -12,6 +12,7 @@ import * as dayjs from 'dayjs';
 import * as isBetween from 'dayjs/plugin/isBetween';
 import * as isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import * as isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import { HttpException, HttpStatus } from '@nestjs/common'; // Thêm import này
 
 // Kích hoạt các plugin của dayjs để so sánh thời gian
 dayjs.extend(isBetween);
@@ -150,7 +151,16 @@ export class AppointmentsService {
     const startTime = new Date(dto.start_time);
     if (startTime < new Date()) throw new BadRequestException('Không thể đặt lịch trong quá khứ');
 
-    // Tìm Patient
+    // --- [THÊM ĐOẠN LOG NÀY ĐỂ DEBUG] ---
+    console.log('--- DEBUG BOOKING ---');
+    console.log('1. Booking Request:', {
+      branch: dto.branch_id,
+      doctor: dto.doctor_assigned_id,
+      timeString: dto.start_time,
+      parsedDate: startTime, // Kiểm tra xem giờ có bị trừ đi 7 tiếng (UTC) không?
+      parsedLocal: startTime.toLocaleString()
+    });
+    // Tìm Patient (giữ nguyên logic cũ)
     let patient = await this.prisma.patient.findUnique({ where: { user_id: createdBy } });
     if (!patient) patient = await this.prisma.patient.findUnique({ where: { id: dto.patient_id } });
     if (!patient) throw new NotFoundException('Không tìm thấy hồ sơ bệnh nhân');
@@ -158,55 +168,76 @@ export class AppointmentsService {
     let finalDoctorId = dto.doctor_assigned_id || null;
     let finalRoomId = dto.room_id || null;
     let calculatedEndTime = new Date(dto.end_time);
-    let successMessage = 'Đặt lịch thành công'; // Thông báo mặc định
+    let successMessage = 'Đặt lịch thành công';
 
-    // 1. TÌM CA TRỰC PHÙ HỢP (Để gán Bác sĩ & Phòng)
-    // Logic: Tìm ca trực bao phủ thời gian khám
+    // 1. TÌM CA TRỰC PHÙ HỢP
     const availableShifts = await this.prisma.doctorShift.findMany({
       where: {
         room: { branch_id: dto.branch_id },
         start_time: { lte: startTime },
         end_time: { gt: startTime },
-        ...(finalDoctorId ? { doctor_id: finalDoctorId } : {}) // Nếu khách chọn bác sĩ thì tìm đúng ca ông đó
+        ...(finalDoctorId ? { doctor_id: finalDoctorId } : {})
       },
       include: { doctor: true }
     });
 
-    // 2. XỬ LÝ KHI KHÔNG TÌM THẤY CA TRỰC
+    // 2. XỬ LÝ KHI KHÔNG TÌM THẤY CA TRỰC (LOGIC MỚI Ở ĐÂY)
+    console.log('2. Shift Query Result:', availableShifts.length, 'shifts found.');
     if (availableShifts.length === 0) {
-      // Kiểm tra xem đây có phải là "Tương lai chưa xếp lịch" không?
+
+      // Kiểm tra xem có phải tương lai xa không (Logic cũ)
       const lastShift = await this.prisma.doctorShift.findFirst({
         where: { room: { branch_id: dto.branch_id }, start_time: { gte: new Date() } },
         orderBy: { start_time: 'desc' }
       });
       const maxScheduledDate = lastShift ? dayjs(lastShift.start_time).endOf('day') : dayjs();
-
+      const allShiftsInDay = await this.prisma.doctorShift.findMany({
+        where: {
+          doctor_id: finalDoctorId,
+          start_time: { gte: dayjs(startTime).startOf('day').toDate() }
+        }
+      });
+      console.log('Check Shift in DB (All day):', allShiftsInDay);
       if (dayjs(startTime).isAfter(maxScheduledDate)) {
-        // ==> HỢP LỆ: Đặt trước cho tương lai xa
-        // Cho phép tạo nhưng chưa gán phòng/bác sĩ chính thức (nếu Auto)
+        // ==> ĐÂY LÀ LỊCH TƯƠNG LAI CHƯA ĐƯỢC XẾP
 
-        // Nếu khách chọn bác sĩ, vẫn giữ ID bác sĩ đó để "xí chỗ"
-        // Nếu Auto, finalDoctorId = null -> Chờ Admin xếp lịch
+        // --- [CASE 1]: KHÁCH CHỌN ĐÍCH DANH BÁC SĨ ---
+        if (finalDoctorId) {
+          // Nếu chưa có cờ xác nhận từ Frontend gửi lên -> Báo lỗi để hiện Popup
+          if (!dto.confirm_booking) {
+            throw new HttpException({
+              status: HttpStatus.CONFLICT, // Mã 409
+              code: 'DOCTOR_NOT_SCHEDULED', // Code riêng để Frontend bắt
+              message: `Bác sĩ này chưa có lịch trực vào ngày ${dayjs(startTime).format('DD/MM/YYYY')}. Bạn có muốn tiếp tục đặt lịch chờ không?`
+            }, HttpStatus.CONFLICT);
+          }
 
-        successMessage = 'Yêu cầu đặt lịch đã được ghi nhận. Chúng tôi sẽ sắp xếp bác sĩ và gửi thông báo xác nhận sớm nhất.';
+          // Nếu đã có cờ confirm_booking = true -> Cho phép tạo (Ghi nhận chờ)
+          successMessage = 'Đã ghi nhận yêu cầu đặt lịch chờ. Lịch sẽ được xác nhận khi bác sĩ có ca trực.';
+          // Giữ nguyên finalDoctorId để lưu vào DB là ý muốn của khách
+          // Mặc định thời gian khám là 30p vì chưa có thông tin bác sĩ thực tế
+          calculatedEndTime = dayjs(startTime).add(30, 'minute').toDate();
+        }
 
-        // Mặc định 30p nếu không có thông tin bác sĩ
-        calculatedEndTime = dayjs(startTime).add(30, 'minute').toDate();
+        // --- [CASE 2]: KHÔNG CHỌN BÁC SĨ (AUTO) ---
+        else {
+          // Vẫn ghi nhận bình thường, đợi sync sau
+          successMessage = 'Yêu cầu đặt lịch đã được ghi nhận. Hệ thống sẽ tự động sắp xếp bác sĩ khi có lịch trực.';
+          calculatedEndTime = dayjs(startTime).add(30, 'minute').toDate();
+          // finalDoctorId vẫn là null -> SyncPendingAppointments sẽ xử lý cái này
+        }
+
       } else {
-        // ==> KHÔNG HỢP LỆ: Ngày nghỉ hoặc đã kín lịch
+        // Ngày nghỉ hoặc đã kín lịch
         throw new BadRequestException('Rất tiếc, khung giờ này hiện không có bác sĩ trực hoặc phòng khám nghỉ.');
       }
 
     } else {
-      // 3. XỬ LÝ KHI CÓ CA TRỰC (Gán ngay lập tức)
-
+      // 3. XỬ LÝ KHI CÓ CA TRỰC (Logic cũ giữ nguyên)
       let selectedShift = null;
 
       if (finalDoctorId) {
-        // Khách chọn đích danh -> Check trùng lịch
-        selectedShift = availableShifts[0]; // Đã filter ở query trên
-
-        // Tính lại giờ kết thúc chuẩn theo bác sĩ
+        selectedShift = availableShifts[0];
         const duration = selectedShift.doctor.average_time || 30;
         calculatedEndTime = dayjs(startTime).add(duration, 'minute').toDate();
 
@@ -221,12 +252,10 @@ export class AppointmentsService {
         if (conflict) throw new BadRequestException('Bác sĩ đã bận vào giờ này, vui lòng chọn giờ khác.');
 
       } else {
-        // Auto-Assign: Chọn bác sĩ rảnh trong list availableShifts
-        // (Đơn giản hóa: lấy người đầu tiên chưa trùng lịch)
+        // Auto-Assign
         for (const shift of availableShifts) {
           const duration = shift.doctor.average_time || 30;
           const endTime = dayjs(startTime).add(duration, 'minute').toDate();
-
           const isBusy = await this.prisma.appointment.findFirst({
             where: {
               doctor_assigned_id: shift.doctor_id,
@@ -235,7 +264,6 @@ export class AppointmentsService {
               end_time: { gt: startTime }
             }
           });
-
           if (!isBusy) {
             selectedShift = shift;
             finalDoctorId = shift.doctor_id;
@@ -243,28 +271,25 @@ export class AppointmentsService {
             break;
           }
         }
-
         if (!selectedShift) throw new BadRequestException('Tất cả bác sĩ đều bận vào giờ này.');
         successMessage = `Đặt lịch thành công. Bác sĩ ${selectedShift.doctor.user?.full_name || ''} sẽ khám cho bạn.`;
       }
-
-      // Gán phòng theo ca trực
       if (selectedShift) finalRoomId = selectedShift.room_id;
     }
 
-    // 4. LƯU VÀO DB
+    // 4. LƯU VÀO DB (Logic cũ giữ nguyên)
     const appointment = await this.prisma.appointment.create({
       data: {
         patient_id: patient.id,
         branch_id: dto.branch_id,
-        doctor_assigned_id: finalDoctorId, // Có thể null nếu là đặt trước tương lai (Auto)
-        room_id: finalRoomId,              // Có thể null
+        doctor_assigned_id: finalDoctorId,
+        room_id: finalRoomId,
         appointment_type: dto.appointment_type,
         start_time: startTime,
         end_time: calculatedEndTime,
         source: dto.source || 'online',
         notes: dto.notes,
-        status: AppointmentStatus.SCHEDULED, // Hoặc có thể thêm trạng thái PENDING_ASSIGNMENT nếu muốn
+        status: AppointmentStatus.SCHEDULED,
         created_by: createdBy,
       },
       include: {
@@ -275,7 +300,7 @@ export class AppointmentsService {
       },
     });
 
-    // Log status
+    // Log status (Giữ nguyên)
     await this.prisma.appointmentStatusLog.create({
       data: {
         appointment_id: appointment.id,
@@ -284,7 +309,6 @@ export class AppointmentsService {
       },
     });
 
-    // Trả về cả Data và Message để Frontend hiển thị
     return {
       message: successMessage,
       data: appointment
@@ -513,6 +537,8 @@ export class AppointmentsService {
    * Hàm này cần được gọi bên phía DoctorShiftService sau khi tạo Shift thành công
    * @param shift thông tin ca trực vừa tạo
    */
+  // Trong file appointments.service.ts
+
   async syncPendingAppointments(shift: {
     branch_id: string;
     doctor_id: string;
@@ -520,39 +546,53 @@ export class AppointmentsService {
     end_time: Date;
     room_id?: string
   }) {
-    console.log('Đang quét các lịch hẹn chờ để gán cho bác sĩ...');
+    console.log(`Đang quét lịch hẹn chờ cho bác sĩ ${shift.doctor_id}...`);
 
-    // 1. Tìm các lịch hẹn đang CHỜ (chưa có bác sĩ) nằm trong khung giờ ca trực này
-    const pendingAppointments = await this.prisma.appointment.findMany({
+    // Điều kiện chung: Cùng chi nhánh, thời gian nằm trong ca trực
+    const timeCondition = {
+      branch_id: shift.branch_id,
+      status: AppointmentStatus.SCHEDULED,
+      start_time: { gte: shift.start_time },
+      end_time: { lte: shift.end_time },
+    };
+
+    // 1. Tìm các lịch hẹn AUTO (chưa có bác sĩ)
+    const autoAppointments = await this.prisma.appointment.findMany({
       where: {
-        branch_id: shift.branch_id,            // Cùng chi nhánh
-        doctor_assigned_id: null,              // Chưa có bác sĩ (quan trọng)
-        status: AppointmentStatus.SCHEDULED,   // Đang ở trạng thái đã đặt
-        start_time: { gte: shift.start_time }, // Bắt đầu sau khi ca trực mở
-        end_time: { lte: shift.end_time },     // Kết thúc trước khi ca trực đóng
+        ...timeCondition,
+        doctor_assigned_id: null, // Chưa ai nhận
       }
     });
 
-    if (pendingAppointments.length === 0) {
-      console.log('Không có lịch hẹn nào cần gán.');
-      return;
-    }
+    // 2. Tìm các lịch hẹn ĐÍCH DANH (đã chọn bác sĩ này nhưng đang chờ lịch)
+    // Lưu ý: Chỉ tìm đúng ID của bác sĩ trong ca trực này
+    const specificAppointments = await this.prisma.appointment.findMany({
+      where: {
+        ...timeCondition,
+        doctor_assigned_id: shift.doctor_id,
+        // Có thể check thêm điều kiện room_id = null để biết là chưa được gán phòng chính thức
+        // nhưng tạm thời cứ update lại cho chắc.
+      }
+    });
 
-    // 2. Cập nhật hàng loạt (Bulk Update)
-    // Gán bác sĩ và phòng (nếu ca trực cố định phòng) cho các lịch hẹn đó
+    const allPendingIds = [
+      ...autoAppointments.map(a => a.id),
+      ...specificAppointments.map(a => a.id)
+    ];
+
+    if (allPendingIds.length === 0) return;
+
+    // 3. Cập nhật
     const updateResult = await this.prisma.appointment.updateMany({
       where: {
-        id: { in: pendingAppointments.map(appt => appt.id) }
+        id: { in: allPendingIds }
       },
       data: {
-        doctor_assigned_id: shift.doctor_id,
-        // Nếu ca trực gắn với phòng cụ thể thì update luôn phòng, nếu không giữ nguyên phòng cũ
-        ...(shift.room_id ? { room_id: shift.room_id } : {})
+        doctor_assigned_id: shift.doctor_id, // Gán bác sĩ (với case Auto)
+        ...(shift.room_id ? { room_id: shift.room_id } : {}) // Gán phòng chuẩn theo ca trực
       }
     });
 
-    console.log(`Đã tự động gán ${updateResult.count} lịch hẹn cho bác sĩ ID ${shift.doctor_id}`);
-
-    // (Tuỳ chọn) Gửi thông báo/Email cho bác sĩ và bệnh nhân báo là đã có lịch chính thức
+    console.log(`Đã đồng bộ ${updateResult.count} lịch hẹn cho bác sĩ ID ${shift.doctor_id}`);
   }
 }

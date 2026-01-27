@@ -7,6 +7,10 @@ import {
   CreateSpecializationDto,
   UpdateSpecializationDto
 } from './dto/doctor.dto';
+import {
+  CreateExaminationPackageDto,
+  UpdateExaminationPackageDto
+} from './dto/examination-package.dto';
 import { AppointmentStatus } from '@prisma/client';
 
 @Injectable()
@@ -221,12 +225,22 @@ export class DoctorsService {
   }
 
   async createSpecialization(dto: CreateSpecializationDto) {
-    const existing = await this.prisma.specialization.findUnique({
+    // Kiểm tra tên đã tồn tại
+    const existingByName = await this.prisma.specialization.findUnique({
       where: { name: dto.name },
     });
 
-    if (existing) {
-      throw new ConflictException('Chuyên khoa đã tồn tại');
+    if (existingByName) {
+      throw new ConflictException('Tên chuyên khoa đã tồn tại');
+    }
+
+    // Kiểm tra slug đã tồn tại
+    const existingBySlug = await this.prisma.specialization.findFirst({
+      where: { slug: dto.slug },
+    });
+
+    if (existingBySlug) {
+      throw new ConflictException('Slug đã tồn tại. Vui lòng chọn slug khác.');
     }
 
     return this.prisma.specialization.create({
@@ -243,12 +257,23 @@ export class DoctorsService {
       throw new NotFoundException('Không tìm thấy chuyên khoa');
     }
 
+    // Kiểm tra tên đã tồn tại (nếu thay đổi)
     if (dto.name && dto.name !== specialization.name) {
-      const existing = await this.prisma.specialization.findUnique({
+      const existingByName = await this.prisma.specialization.findUnique({
         where: { name: dto.name },
       });
-      if (existing) {
+      if (existingByName) {
         throw new ConflictException('Tên chuyên khoa đã tồn tại');
+      }
+    }
+
+    // Kiểm tra slug đã tồn tại (nếu thay đổi)
+    if (dto.slug && dto.slug !== specialization.slug) {
+      const existingBySlug = await this.prisma.specialization.findFirst({
+        where: { slug: dto.slug },
+      });
+      if (existingBySlug) {
+        throw new ConflictException('Slug đã tồn tại. Vui lòng chọn slug khác.');
       }
     }
 
@@ -285,5 +310,164 @@ export class DoctorsService {
         start_time: 'desc', // Sắp xếp ngày mới nhất lên đầu
       },
     });
+  }
+
+  // ============= EXAMINATION PACKAGES =============
+  async getAllExaminationPackages(specializationId?: string) {
+    const packages = await this.prisma.examinationPackage.findMany({
+      where: {
+        ...(specializationId && { specialization_id: specializationId }),
+        is_active: true,
+      },
+      include: {
+        specialization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+      orderBy: [
+        { is_featured: 'desc' },
+        { created_at: 'desc' },
+      ],
+    });
+
+    // Parse services từ JSON string
+    return packages.map(pkg => ({
+      ...pkg,
+      services: pkg.services ? JSON.parse(pkg.services as string) : [],
+    }));
+  }
+
+  async getExaminationPackageById(id: string) {
+    const package_ = await this.prisma.examinationPackage.findUnique({
+      where: { id },
+      include: {
+        specialization: true,
+      },
+    });
+
+    if (!package_) {
+      throw new NotFoundException('Không tìm thấy gói khám');
+    }
+
+    return {
+      ...package_,
+      services: package_.services ? JSON.parse(package_.services as string) : [],
+    };
+  }
+
+  async createExaminationPackage(dto: CreateExaminationPackageDto) {
+    // Kiểm tra chuyên khoa tồn tại
+    const specialization = await this.prisma.specialization.findUnique({
+      where: { id: dto.specialization_id },
+    });
+
+    if (!specialization) {
+      throw new NotFoundException('Không tìm thấy chuyên khoa');
+    }
+
+    // Kiểm tra slug trùng
+    const existingBySlug = await this.prisma.examinationPackage.findUnique({
+      where: { slug: dto.slug },
+    });
+    if (existingBySlug) {
+      throw new ConflictException('Slug gói khám đã tồn tại. Vui lòng chọn slug khác.');
+    }
+
+    const package_ = await this.prisma.examinationPackage.create({
+      data: {
+        ...dto,
+        services: dto.services ? JSON.stringify(dto.services) : null,
+      },
+      include: {
+        specialization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    return {
+      ...package_,
+      services: package_.services ? JSON.parse(package_.services as string) : [],
+    };
+  }
+
+  async updateExaminationPackage(id: string, dto: UpdateExaminationPackageDto) {
+    const package_ = await this.prisma.examinationPackage.findUnique({
+      where: { id },
+    });
+
+    if (!package_) {
+      throw new NotFoundException('Không tìm thấy gói khám');
+    }
+
+    // Kiểm tra chuyên khoa nếu có thay đổi
+    if (dto.specialization_id && dto.specialization_id !== package_.specialization_id) {
+      const specialization = await this.prisma.specialization.findUnique({
+        where: { id: dto.specialization_id },
+      });
+
+      if (!specialization) {
+        throw new NotFoundException('Không tìm thấy chuyên khoa');
+      }
+    }
+
+    const updateData: any = { ...dto };
+
+    // Kiểm tra slug nếu thay đổi
+    if (dto.slug && dto.slug !== package_.slug) {
+      const existingBySlug = await this.prisma.examinationPackage.findUnique({
+        where: { slug: dto.slug },
+      });
+      if (existingBySlug) {
+        throw new ConflictException('Slug gói khám đã tồn tại. Vui lòng chọn slug khác.');
+      }
+    }
+
+    if (dto.services !== undefined) {
+      updateData.services = dto.services ? JSON.stringify(dto.services) : null;
+    }
+
+    const updated = await this.prisma.examinationPackage.update({
+      where: { id },
+      data: updateData,
+      include: {
+        specialization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    return {
+      ...updated,
+      services: updated.services ? JSON.parse(updated.services as string) : [],
+    };
+  }
+
+  async deleteExaminationPackage(id: string) {
+    const package_ = await this.prisma.examinationPackage.findUnique({
+      where: { id },
+    });
+
+    if (!package_) {
+      throw new NotFoundException('Không tìm thấy gói khám');
+    }
+
+    await this.prisma.examinationPackage.delete({
+      where: { id },
+    });
+
+    return { message: 'Xóa gói khám thành công' };
   }
 }

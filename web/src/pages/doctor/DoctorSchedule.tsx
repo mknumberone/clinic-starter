@@ -1,5 +1,7 @@
+// File: src/pages/doctor/DoctorSchedule.tsx
+
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Card,
   Table,
@@ -8,55 +10,47 @@ import {
   Typography,
   Badge,
   Alert,
-  Spin
+  Spin,
+  Button,
+  message,
+  Popconfirm,
+  Tooltip
 } from 'antd';
 import {
   CalendarOutlined,
   ClockCircleOutlined,
   EnvironmentOutlined,
+  LoginOutlined,
+  LogoutOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useAuthStore } from '@/stores/authStore';
 import { doctorService } from '@/services/doctor.service';
+import axiosInstance from '@/lib/axios'; // Import axios instance để gọi API điểm danh
 import dayjs from 'dayjs';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 export default function DoctorSchedule() {
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
 
   // 1. Lấy thông tin Bác sĩ
   const { data: doctorProfile, isLoading: loadingProfile, isError: profileError } = useQuery({
     queryKey: ['my-doctor-schedule-profile', user?.id],
     queryFn: async () => {
-      console.log("--- DEBUG TÌM BÁC SĨ ---");
-      console.log("User ID đang đăng nhập:", user?.id);
-
       try {
-        // Sử dụng service thay vì gọi trực tiếp axiosInstance
         const response = await doctorService.getDoctors({ limit: 100 });
-        // doctorService.getDoctors() trả về { data: [...], pagination: {...} }
         const doctors = response?.data || [];
-        console.log("Danh sách bác sĩ tải về:", doctors);
-
-        // Tìm bác sĩ
         const myProfile = doctors.find((d: any) => d.user?.id === user?.id || d.user_id === user?.id);
-
-        if (myProfile) {
-          console.log("=> ĐÃ TÌM THẤY BÁC SĨ:", myProfile.user.full_name);
-        } else {
-          console.error("=> KHÔNG TÌM THẤY BÁC SĨ KHỚP VỚI ID:", user?.id);
-        }
-
         if (!myProfile) throw new Error('Tài khoản chưa liên kết với hồ sơ bác sĩ');
         return myProfile;
       } catch (error: any) {
-        console.error("Lỗi khi tìm bác sĩ:", error);
         throw error;
       }
     },
     enabled: !!user?.id,
-    retry: 1,
   });
 
   // 2. Lấy Lịch trực
@@ -64,37 +58,74 @@ export default function DoctorSchedule() {
     queryKey: ['my-shifts', doctorProfile?.id],
     queryFn: async () => {
       if (!doctorProfile?.id) return [];
-      console.log("Gọi API lấy lịch cho Doctor ID:", doctorProfile.id);
-      try {
-        const data = await doctorService.getDoctorShifts(doctorProfile.id);
-        // Xử lý response an toàn
-        if (Array.isArray(data)) return data;
-        if (data && Array.isArray(data.data)) return data.data;
-        if (data && Array.isArray(data.shifts)) return data.shifts;
-        return [];
-      } catch (error: any) {
-        console.error("Lỗi khi lấy lịch trực:", error);
-        throw error;
-      }
+      const data = await doctorService.getDoctorShifts(doctorProfile.id);
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.data)) return data.data;
+      return [];
     },
     enabled: !!doctorProfile?.id,
-    retry: 1,
   });
 
-  const getShiftStatus = (start: string, end: string) => {
-    const now = dayjs();
-    const startTime = dayjs(start);
-    const endTime = dayjs(end);
+  // 3. Mutation Check-in / Check-out
+  const attendanceMutation = useMutation({
+    mutationFn: async ({ id, type }: { id: string, type: 'CHECK_IN' | 'CHECK_OUT' }) => {
+      // Gọi API mà chúng ta đã định nghĩa ở Backend
+      return axiosInstance.patch(`/shifts/${id}/attendance`, { type });
+    },
+    onSuccess: (_, variables) => {
+      message.success(variables.type === 'CHECK_IN' ? 'Check-in thành công!' : 'Check-out thành công!');
+      queryClient.invalidateQueries({ queryKey: ['my-shifts'] });
+    },
+    onError: (err: any) => {
+      message.error(err.response?.data?.message || 'Lỗi điểm danh');
+    }
+  });
 
-    if (now.isBefore(startTime)) return { color: 'blue', text: 'Sắp tới' };
-    if (now.isAfter(endTime)) return { color: 'default', text: 'Đã qua' };
+  // --- LOGIC TRẠNG THÁI HIỂN THỊ ---
+  const getShiftStatus = (record: any) => {
+    const now = dayjs();
+    const start = dayjs(record.start_time);
+    const end = dayjs(record.end_time);
+
+    // Logic trạng thái thời gian
+    if (now.isBefore(start)) return { color: 'blue', text: 'Sắp tới' };
+    if (now.isAfter(end)) return { color: 'default', text: 'Đã kết thúc' };
     return { color: 'green', text: 'Đang diễn ra', processing: true };
+  };
+
+  const getAttendanceStatus = (record: any) => {
+    // Nếu chưa có checkin
+    if (!record.actual_start_time) return null;
+
+    const scheduledStart = dayjs(record.start_time);
+    const actualStart = dayjs(record.actual_start_time);
+
+    // Tính trễ (cho phép trễ 15 phút)
+    const isLate = actualStart.diff(scheduledStart, 'minute') > 15;
+
+    if (!record.actual_end_time) {
+      return isLate
+        ? <Tag color="orange">Đang làm (Đến muộn)</Tag>
+        : <Tag color="processing">Đang làm việc</Tag>;
+    }
+
+    const scheduledEnd = dayjs(record.end_time);
+    const actualEnd = dayjs(record.actual_end_time);
+    // Tính về sớm (sớm hơn 15 phút)
+    const isEarly = scheduledEnd.diff(actualEnd, 'minute') > 15;
+
+    if (isLate && isEarly) return <Tag color="red">Muộn & Về sớm</Tag>;
+    if (isLate) return <Tag color="orange">Đi muộn</Tag>;
+    if (isEarly) return <Tag color="warning">Về sớm</Tag>;
+
+    return <Tag color="success">Đúng giờ</Tag>;
   };
 
   const columns = [
     {
       title: 'Ngày trực',
       key: 'date',
+      width: 120,
       render: (_: any, record: any) => {
         const date = dayjs(record.start_time);
         return (
@@ -108,12 +139,24 @@ export default function DoctorSchedule() {
       defaultSortOrder: 'ascend' as const,
     },
     {
-      title: 'Thời gian',
+      title: 'Khung giờ',
       key: 'time',
+      width: 150,
       render: (_: any, record: any) => (
-        <Tag icon={<ClockCircleOutlined />} color="cyan" className="px-2 py-1 text-sm">
-          {dayjs(record.start_time).format('HH:mm')} - {dayjs(record.end_time).format('HH:mm')}
-        </Tag>
+        <Space direction="vertical" size={2}>
+          <Tag icon={<ClockCircleOutlined />} color="cyan">
+            {dayjs(record.start_time).format('HH:mm')} - {dayjs(record.end_time).format('HH:mm')}
+          </Tag>
+          {/* Hiển thị thời gian thực tế nếu có */}
+          {record.actual_start_time && (
+            <div className="text-xs text-gray-500">
+              In: <span className="font-semibold">{dayjs(record.actual_start_time).format('HH:mm')}</span>
+              {record.actual_end_time && (
+                <span> - Out: <span className="font-semibold">{dayjs(record.actual_end_time).format('HH:mm')}</span></span>
+              )}
+            </div>
+          )}
+        </Space>
       ),
     },
     {
@@ -130,14 +173,50 @@ export default function DoctorSchedule() {
       ),
     },
     {
-      title: 'Trạng thái',
-      key: 'status',
+      title: 'Chấm công', // [MỚI] Cột trạng thái công việc
+      key: 'attendance_status',
+      render: (_: any, record: any) => getAttendanceStatus(record) || <Text type="secondary" className="text-xs">Chưa check-in</Text>
+    },
+    {
+      title: 'Thao tác', // [MỚI] Nút bấm
+      key: 'action',
+      width: 150,
       render: (_: any, record: any) => {
-        const status = getShiftStatus(record.start_time, record.end_time);
-        return status.processing ? (
-          <Badge status="processing" text={<span className="text-green-600 font-bold">{status.text}</span>} />
-        ) : (
-          <Badge status={status.color === 'blue' ? 'warning' : 'default'} text={status.text} />
+        const isToday = dayjs().isSame(dayjs(record.start_time), 'day');
+        const hasCheckedIn = !!record.actual_start_time;
+        const hasCheckedOut = !!record.actual_end_time;
+
+        if (!isToday) {
+          // Nếu không phải hôm nay -> Chỉ xem trạng thái
+          return hasCheckedOut ? <CheckCircleOutlined className="text-green-500 text-xl" /> : <Text disabled>--</Text>;
+        }
+
+        if (hasCheckedOut) {
+          return <div className="text-green-600 font-medium"><CheckCircleOutlined /> Hoàn thành</div>;
+        }
+
+        if (hasCheckedIn) {
+          return (
+            <Popconfirm
+              title="Xác nhận kết thúc ca làm việc?"
+              onConfirm={() => attendanceMutation.mutate({ id: record.id, type: 'CHECK_OUT' })}
+            >
+              <Button type="primary" danger icon={<LogoutOutlined />} loading={attendanceMutation.isPending}>
+                Check Out
+              </Button>
+            </Popconfirm>
+          );
+        }
+
+        return (
+          <Popconfirm
+            title="Xác nhận bắt đầu ca làm việc?"
+            onConfirm={() => attendanceMutation.mutate({ id: record.id, type: 'CHECK_IN' })}
+          >
+            <Button type="primary" icon={<LoginOutlined />} loading={attendanceMutation.isPending}>
+              Check In
+            </Button>
+          </Popconfirm>
         );
       },
     },
@@ -146,62 +225,27 @@ export default function DoctorSchedule() {
   return (
     <DashboardLayout>
       <div className="p-6">
-        <div className="mb-6">
-          <Title level={2} className="flex items-center gap-2">
-            <CalendarOutlined /> Lịch trực của tôi
-          </Title>
-          <Typography.Text type="secondary">
-            Xem danh sách các ca trực đã được phân công cho bạn.
-          </Typography.Text>
+        <div className="mb-6 flex justify-between items-center">
+          <div>
+            <Title level={2} className="flex items-center gap-2 m-0">
+              <CalendarOutlined /> Lịch trực & Chấm công
+            </Title>
+            <Typography.Text type="secondary">
+              Quản lý thời gian làm việc và điểm danh hàng ngày.
+            </Typography.Text>
+          </div>
+          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['my-shifts'] })}>
+            Làm mới dữ liệu
+          </Button>
         </div>
 
-        {/* Loading */}
+        {/* Loading & Error States... (Giữ nguyên như cũ) */}
         {(loadingProfile || (doctorProfile && loadingShifts)) && (
           <Card>
             <div className="text-center py-12">
               <Spin size="large" tip="Đang tải dữ liệu..." />
             </div>
           </Card>
-        )}
-
-        {/* Error State - Không tìm thấy bác sĩ */}
-        {!loadingProfile && (!doctorProfile || profileError) && (
-          <Alert
-            message="Không tìm thấy thông tin Bác sĩ"
-            description={
-              <div>
-                Tài khoản của bạn chưa được liên kết với hồ sơ bác sĩ.
-                <br /><b>Cách khắc phục:</b> Hãy thử Đăng xuất và Đăng nhập lại.
-                {profileError && (
-                  <div className="mt-2 text-xs text-gray-500">
-                    Chi tiết lỗi: {(profileError as any)?.response?.data?.message || (profileError as any)?.message || 'Lỗi không xác định'}
-                  </div>
-                )}
-              </div>
-            }
-            type="error"
-            showIcon
-            className="mb-4"
-          />
-        )}
-
-        {/* Error State - Lỗi khi lấy lịch trực */}
-        {doctorProfile && shiftsError && (
-          <Alert
-            message="Lỗi kết nối"
-            description={
-              <div>
-                Không thể tải dữ liệu lịch trực. Vui lòng thử lại sau.
-                <br />
-                <span className="text-xs text-gray-500">
-                  {(shiftsErrorDetail as any)?.response?.data?.message || (shiftsErrorDetail as any)?.message || 'Lỗi không xác định'}
-                </span>
-              </div>
-            }
-            type="error"
-            showIcon
-            className="mb-4"
-          />
         )}
 
         {/* Data Table */}

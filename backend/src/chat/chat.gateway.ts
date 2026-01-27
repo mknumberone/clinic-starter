@@ -1,3 +1,5 @@
+// File: src/chat/chat.gateway.ts
+
 import {
     WebSocketGateway,
     SubscribeMessage,
@@ -32,6 +34,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             const payload = this.jwtService.verify(cleanToken, { secret: process.env.JWT_SECRET });
 
             client.data.user = payload;
+
+            // Join vào phòng riêng của User (để nhận noti cá nhân nếu cần)
             client.join(`user_${payload.sub}`);
             console.log(`User connected: ${payload.sub}`);
         } catch (e) {
@@ -45,7 +49,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     @SubscribeMessage('joinRoom')
     handleJoinRoom(@ConnectedSocket() client: Socket, @MessageBody() conversationId: string) {
-        // Client tham gia phòng có tên "conversation_ID"
+        // Join vào phòng của cuộc hội thoại cụ thể
         client.join(`conversation_${conversationId}`);
         console.log(`User joined room conversation_${conversationId}`);
     }
@@ -59,7 +63,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 throw new Error("User ID not found in socket connection");
             }
 
-            // Lưu tin nhắn vào DB
+            // 1. Lưu tin nhắn vào DB (Service đã tự động update 'updated_at' cho Conversation)
             const message = await this.chatService.saveMessage(
                 payload.conversationId,
                 senderId,
@@ -67,13 +71,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 payload.type || 'TEXT'
             );
 
-            // --- SỬA LẠI DÒNG NÀY (QUAN TRỌNG NHẤT) ---
-            // Phải thêm tiền tố 'conversation_' để khớp với lúc joinRoom
+            // 2. Gửi sự kiện 'newMessage' cho các client đang mở khung chat này (để hiện tin nhắn)
             this.server.to(`conversation_${payload.conversationId}`).emit('newMessage', message);
+
+            // 3. [MỚI] Gửi sự kiện 'conversationUpdated' để client cập nhật danh sách hội thoại bên ngoài (sidebar)
+            // Sự kiện này chứa info tin nhắn cuối để frontend update UI realtime mà không cần gọi lại API list
+            this.server.to(`conversation_${payload.conversationId}`).emit('conversationUpdated', {
+                conversationId: payload.conversationId,
+                lastMessage: message,
+                updatedAt: new Date()
+            });
 
         } catch (error) {
             console.error("Lỗi gửi tin nhắn (Socket):", error);
-            client.emit('error', { message: 'Gửi tin nhắn thất bại' });
+            client.emit('error', { message: 'Không thể gửi tin nhắn' });
         }
     }
 }

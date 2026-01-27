@@ -18,6 +18,7 @@ import {
   DatabaseOutlined,
   PlusOutlined,
   MessageOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { uploadService } from '@/services/upload.service';
@@ -27,6 +28,7 @@ import { branchesService } from '@/services/branches.service';
 import { useSocketStore } from '@/stores/socketStore';
 import { useAuthModalStore } from '@/stores/authModalStore'; // Import Store Modal
 import ChatWidget from '@/components/chat/ChatWidget';
+import AttendanceTracking from '@/pages/admin/AttendanceTracking';
 
 const { Header, Sider, Content } = Layout;
 
@@ -115,6 +117,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         { key: 'appointments', icon: <CalendarOutlined />, label: 'Lịch hẹn', onClick: () => navigate('/admin/appointments') },
         { key: 'prescriptions', icon: <FileTextOutlined />, label: 'Đơn thuốc', onClick: () => navigate('/admin/prescriptions') },
         { key: 'invoices', icon: <DollarOutlined />, label: 'Hóa đơn', onClick: () => navigate('/admin/invoices') },
+        { key: 'news', icon: <FileTextOutlined />, label: 'Tin tức', onClick: () => navigate('/admin/news') },
         { key: 'profile', icon: <UserOutlined />, label: 'Hồ sơ', onClick: () => navigate('/admin/profile') },
         {
           key: 'branches',
@@ -134,6 +137,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           label: 'Quản lý Lịch trực',
           onClick: () => navigate('/admin/shifts'),
         },
+        {
+          key: 'attendance',
+          icon: <ClockCircleOutlined />,
+          label: 'Theo dõi Chấm công',
+          onClick: () => navigate('/admin/attendance'),
+        },
+
         {
           key: 'messages',
           icon: <MessageOutlined />,
@@ -171,6 +181,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           icon: <ScheduleOutlined />,
           label: 'Quản lý Lịch trực',
           onClick: () => navigate('/manager/shifts'),
+        },
+        {
+          key: 'attendance',
+          icon: <ClockCircleOutlined />,
+          label: 'Theo dõi Chấm công',
+          onClick: () => navigate('/admin/attendance'), // Hoặc đường dẫn riêng nếu có
         },
         {
           key: 'messages',
@@ -248,6 +264,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
     );
   };
+
 
   return (
     <Layout className="min-h-screen">

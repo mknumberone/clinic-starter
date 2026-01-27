@@ -2,6 +2,7 @@ import { IsNotEmpty, IsString, IsOptional, IsDateString, IsEnum, IsNumber } from
 import { ApiProperty } from '@nestjs/swagger';
 import { AppointmentStatus } from '@prisma/client';
 import { Transform } from 'class-transformer';
+import { IsBoolean } from 'class-validator'; // Nhớ import thêm IsBoolean
 
 
 export class CreateAppointmentDto {
@@ -49,6 +50,11 @@ export class CreateAppointmentDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiProperty({ example: true, description: 'Cờ xác nhận đặt lịch dù chưa có ca trực', required: false })
+  @IsOptional()
+  @IsBoolean() // Hoặc @IsString() nếu form-data gửi string, nhưng tốt nhất là boolean
+  confirm_booking?: boolean;
 }
 
 export class UpdateAppointmentDto {

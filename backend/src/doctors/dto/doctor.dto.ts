@@ -79,26 +79,69 @@ export class UpdateDoctorDto {
   average_time?: number;
 }
 
-// --- DTO CHO CHUYÊN KHOA ---
+// src/doctors/dto/doctor.dto.ts
+
 export class CreateSpecializationDto {
-  @ApiProperty({ example: 'Tim mạch', description: 'Tên chuyên khoa' })
+  @ApiProperty({ example: 'Nội khoa' })
   @IsNotEmpty({ message: 'Tên chuyên khoa không được để trống' })
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'Khám và điều trị các bệnh về tim mạch', description: 'Mô tả', required: false })
+  // --- CÁC TRƯỜNG MỚI ---
+  @ApiProperty({ example: 'noi-khoa', description: 'URL thân thiện (slug)' })
+  @IsNotEmpty({ message: 'Slug không được để trống' })
+  @IsString()
+  slug: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  image?: string; // Link ảnh bìa
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  icon?: string; // Icon nhỏ
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  content?: string; // Nội dung bài viết HTML
+  // ---------------------
+
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   description?: string;
 }
 
 export class UpdateSpecializationDto {
-  @ApiProperty({ example: 'Tim mạch', description: 'Tên chuyên khoa', required: false })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   name?: string;
 
-  @ApiProperty({ example: 'Khám và điều trị bệnh tim', description: 'Mô tả', required: false })
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  slug?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  image?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  icon?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  content?: string;
+
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   description?: string;

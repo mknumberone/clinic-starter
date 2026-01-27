@@ -12,7 +12,30 @@ export interface Appointment {
   appointment_type: string;
   notes?: string;
   branch?: { name: string; address: string; };
-  doctor?: { code: string; title: string; user: { full_name: string; }; };
+  doctor?: {
+    id?: string;
+    code: string;
+    title: string;
+    user: {
+      full_name: string;
+      avatar?: string; // Thêm avatar nếu cần
+    };
+    specialization?: { // <--- Thêm cái này để sửa lỗi specialization
+      id: string;
+      name: string;
+    };
+  };
+  patient?: {
+    id: string;
+    user: {
+      full_name: string;
+      phone?: string;
+      email?: string;
+      avatar?: string;
+    };
+    gender?: string;
+    birthday?: string;
+  };
   room?: { name: string; code: string; };
   medical_record?: any;
   prescriptions?: any[];
@@ -27,12 +50,24 @@ export interface Branch {
 export interface Specialty {
   id: string;
   name: string;
+  slug?: string;
+  description?: string;
+  image?: string; // Link ảnh bìa
+  icon?: string; // Link icon
+  content?: string; // Nội dung HTML chi tiết
 }
 
 export interface Doctor {
   id: string;
-  user: { full_name: string; };
-  specialty_id: string;
+  user: { 
+    full_name: string;
+    avatar?: string;
+  };
+  title?: string;
+  biography?: string;
+  average_time?: number;
+  specialization_id?: string;
+  specialty_id?: string;
 }
 
 export interface GetAppointmentsParams {
@@ -60,7 +95,7 @@ export const appointmentService = {
   // Lấy danh sách lịch hẹn với bộ lọc (cho Admin, Doctor, Manager)
   getAppointments: (params: GetAppointmentsParams = {}) => {
     const queryParams: any = {};
-    
+
     if (params.page) queryParams.page = params.page;
     if (params.limit) queryParams.limit = params.limit;
     if (params.status) queryParams.status = params.status;
@@ -113,6 +148,11 @@ export const appointmentService = {
     return axiosInstance.get('/specializations')
       .then((res) => res.data)
       .catch(() => []); // Trả về rỗng nếu lỗi
+  },
+
+  // Lấy chi tiết chuyên khoa theo ID
+  getSpecialtyById: (id: string): Promise<Specialty> => {
+    return axiosInstance.get(`/specializations/${id}`).then((res) => res.data);
   },
 
   // Lấy danh sách bác sĩ (có lọc)

@@ -1,4 +1,4 @@
-﻿import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button, Dropdown, Avatar, MenuProps, Space } from 'antd';
 import {
     DownOutlined,
@@ -138,7 +138,7 @@ export default function Navbar() {
 
     return (
         <header className="fixed w-full top-0 z-50 bg-[#003553] text-white shadow-lg h-[90px] transition-all">
-            <div className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-20 h-full">
+            <div className="landing-container h-full">
                 <div className="flex justify-between items-center h-full">
 
                     {/* --- LOGO --- */}
@@ -173,13 +173,13 @@ export default function Navbar() {
                             </button>
                         </Dropdown>
 
-                        {/* 4. TIN TỨC (Mới) */}
-                        <button onClick={() => console.log('News clicked')} className={menuLinkStyle}>
+                        {/* 4. TIN TỨC */}
+                        <button onClick={() => navigate('/news')} className={menuLinkStyle}>
                             TIN TỨC
                         </button>
 
                         {/* 5. LIÊN HỆ */}
-                        <button onClick={() => scrollToSection('contact')} className={menuLinkStyle}>
+                        <button onClick={() => navigate('/contact')} className={menuLinkStyle}>
                             LIÊN HỆ
                         </button>
                     </nav>

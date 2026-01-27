@@ -25,24 +25,27 @@ model Branch {
 }
 
 model User {
-  id                   String        @id @default(uuid())
-  email                String        @unique
-  password_hash        String
-  full_name            String?
-  phone                String?
-  branch_id            String?
-  metadata             Json?
-  created_at           DateTime      @default(now())
-  updated_at           DateTime      @updatedAt
-  role                 UserRole      @default(PATIENT)
-  is_active            Boolean       @default(true)
-  avatar               String?
-  created_appointments Appointment[] @relation("CreatedAppointments")
-  doctor               Doctor?
-  patient              Patient?
-  branch               Branch?       @relation(fields: [branch_id], references: [id])
-  sent_messages               Message[]
+  id                          String                    @id @default(uuid())
+  email                       String?                   @unique
+  password_hash               String?
+  full_name                   String?
+  phone                       String?
+  branch_id                   String?
+  metadata                    Json?
+  created_at                  DateTime                  @default(now())
+  updated_at                  DateTime                  @updatedAt
+  role                        UserRole                  @default(PATIENT)
+  is_active                   Boolean                   @default(true)
+  avatar                      String?
+  is_verified                 Boolean                   @default(false)
+  verification_token          String?
+  created_appointments        Appointment[]             @relation("CreatedAppointments")
   conversation_participations ConversationParticipant[]
+  doctor                      Doctor?
+  sent_messages               Message[]
+  patient                     Patient?
+  branch                      Branch?                   @relation(fields: [branch_id], references: [id])
+  staff_shifts    DoctorShift[]   @relation("StaffShifts")
 }
 
 model Patient {
@@ -84,9 +87,38 @@ model Doctor {
 model Specialization {
   id          String   @id @default(uuid())
   name        String   @unique
+
+  slug String @default("temp-slug")
+  image       String?                     // Link ảnh bìa (Banner)
+  icon        String?                     // Icon nhỏ (nếu cần hiển thị menu)
+  content     String?  @db.Text           // Bài viết chi tiết (HTML)
+
   description String?
   doctors     Doctor[]
   rooms       Room[]
+  packages    ExaminationPackage[]
+}
+
+model ExaminationPackage {
+  id                String         @id @default(uuid())
+  name              String
+  slug              String         @unique @default("temp-slug") // URL thân thiện cho gói khám  
+  category          String?                               // Nhóm gói khám (VD: health-check, pre-marriage, dental,...)
+  description       String?
+  specialization_id String
+  price             Decimal        @default(0) @db.Decimal(10, 2)
+  original_price    Decimal?       @db.Decimal(10, 2)  // Giá gốc (nếu có giảm giá)
+  image             String?        // Ảnh minh họa gói khám
+  services          Json?         // Danh sách dịch vụ trong gói (JSON array)
+  duration          Int?          // Thời gian khám (phút)
+  is_active         Boolean        @default(true)
+  is_featured       Boolean        @default(false)  // Gói nổi bật
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+  specialization    Specialization @relation(fields: [specialization_id], references: [id], onDelete: Cascade)
+
+  @@index([specialization_id])
+  @@index([is_active])
 }
 
 model Room {
@@ -109,18 +141,23 @@ model Room {
 
 model DoctorShift {
   id         String   @id @default(uuid())
-  doctor_id  String
+  doctor_id  String?
+  staff_id   String?
+  actual_start_time DateTime? 
+  actual_end_time   DateTime?
   room_id    String
   start_time DateTime
   end_time   DateTime
   recurrence Json?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-  doctor     Doctor   @relation(fields: [doctor_id], references: [id])
+  doctor     Doctor?   @relation(fields: [doctor_id], references: [id])
+  staff      User?    @relation("StaffShifts", fields: [staff_id], references: [id])
   room       Room     @relation(fields: [room_id], references: [id])
 
-  @@unique([doctor_id, start_time, end_time])
+  
   @@index([room_id, start_time])
+  @@index([staff_id, start_time])
 }
 
 model Appointment {
@@ -161,9 +198,9 @@ model MedicalRecord {
   diagnosis      String
   symptoms       String?
   clinical_data  Json?
-  attachments    Json?          @default("[]") // Lưu mảng các đường dẫn ảnh: [{url: "...", type: "image"}, ...]
   created_at     DateTime       @default(now())
   updated_at     DateTime       @updatedAt
+  attachments    Json?          @default("[]")
   appointment    Appointment    @relation(fields: [appointment_id], references: [id])
   doctor         Doctor         @relation(fields: [doctor_id], references: [id])
   patient        Patient        @relation(fields: [patient_id], references: [id])
@@ -213,6 +250,7 @@ model PrescriptionItem {
 model Medication {
   id                     String                 @id @default(uuid())
   code                   String?                @unique
+  is_active              Boolean                @default(true)
   name                   String
   form                   String?
   base_info              Json?
@@ -240,9 +278,9 @@ model BranchInventory {
   initial_quantity Int
   is_expired       Boolean    @default(false)
   mfg_date         DateTime
-  pending_quantity Int       @default(0) // Số lượng đang nằm trong đơn thuốc chưa thanh toán
   sold_quantity    Int        @default(0)
   updated_at       DateTime   @updatedAt
+  pending_quantity Int        @default(0)
   branch           Branch     @relation(fields: [branch_id], references: [id])
   medication       Medication @relation(fields: [medication_id], references: [id])
 
@@ -294,14 +332,16 @@ model File {
   created_at DateTime @default(now())
 }
 
-// --- CHAT SYSTEM ---
-
 model Conversation {
-  id           String                    @id @default(uuid())
-  created_at   DateTime                  @default(now())
-  updated_at   DateTime                  @updatedAt
-  participants ConversationParticipant[]
-  messages     Message[]
+  id               String                    @id @default(uuid())
+  created_at       DateTime                  @default(now())
+  updated_at       DateTime                  @updatedAt
+  guest_session_id String?
+  status           ConversationStatus        @default(NEW)
+  tags             String[]                  @default([])
+  GuestSession     GuestSession?             @relation(fields: [guest_session_id], references: [id])
+  participants     ConversationParticipant[]
+  messages         Message[]
 }
 
 model ConversationParticipant {
@@ -315,15 +355,17 @@ model ConversationParticipant {
 }
 
 model Message {
-  id              String       @id @default(uuid())
+  id              String        @id @default(uuid())
   conversation_id String
-  sender_id       String
+  sender_id       String?
   content         String
-  created_at      DateTime     @default(now())
-  type            MessageType @default(TEXT) // <--- THÊM DÒNG NÀY
-  is_read         Boolean      @default(false)
-  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
-  sender          User         @relation(fields: [sender_id], references: [id])
+  created_at      DateTime      @default(now())
+  is_read         Boolean       @default(false)
+  type            MessageType   @default(TEXT)
+  guest_sender_id String?
+  conversation    Conversation  @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  GuestSession    GuestSession? @relation(fields: [guest_sender_id], references: [id])
+  sender          User?         @relation(fields: [sender_id], references: [id])
 }
 
 model InventoryTransaction {
@@ -341,6 +383,17 @@ model InventoryTransaction {
   created_by    String?
   branch        Branch          @relation(fields: [branch_id], references: [id])
   medication    Medication      @relation(fields: [medication_id], references: [id])
+}
+
+model GuestSession {
+  id           String         @id
+  name         String?
+  phone        String?
+  email        String?
+  created_at   DateTime       @default(now())
+  updated_at   DateTime
+  Conversation Conversation[]
+  Message      Message[]
 }
 
 enum UserRole {
@@ -389,4 +442,30 @@ enum MessageType {
   TEXT
   IMAGE
   FILE
+}
+
+enum ConversationStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
+}
+
+model News {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique @default("temp-slug")
+  excerpt     String?  @db.Text
+  content     String?  @db.Text
+  author      String?
+  category    String?
+  image       String?
+  views       Int      @default(0)
+  is_published Boolean @default(false)
+  published_at DateTime?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([slug])
+  @@index([is_published])
+  @@index([category])
 }

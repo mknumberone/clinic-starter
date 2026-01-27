@@ -38,7 +38,28 @@ export default function LoginScreen({ navigation }: Props) {
   const loginMutation = useMutation({
     mutationFn: authService.login,
     onSuccess: async (data) => {
-      await login(data.token, data.user as any);
+      // Backend trả về access_token, không phải token
+      const token = data?.access_token || data?.token;
+      
+      // Đảm bảo token và user tồn tại trước khi login
+      if (!token) {
+        console.error('❌ Token không tồn tại trong response:', data);
+        return;
+      }
+      if (!data?.user) {
+        console.error('❌ User không tồn tại trong response:', data);
+        return;
+      }
+      
+      try {
+        // Đảm bảo token là string
+        const tokenString = String(token);
+        await login(tokenString, data.user as any);
+        // Navigate to home sau khi login thành công
+        navigation.replace('Home' as any);
+      } catch (error) {
+        console.error('❌ Lỗi khi lưu thông tin đăng nhập:', error);
+      }
     },
   });
 

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { DoctorsController, SpecializationsController } from './doctors.controller';
+import { DoctorsController, SpecializationsController, ExaminationPackagesController } from './doctors.controller';
 import { DoctorsService } from './doctors.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
@@ -8,6 +8,7 @@ import { PrismaModule } from '../prisma/prisma.module';
   controllers: [
     DoctorsController,
     SpecializationsController,
+    ExaminationPackagesController,
   ],
   providers: [DoctorsService],
   exports: [DoctorsService],

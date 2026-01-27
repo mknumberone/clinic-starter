@@ -17,12 +17,14 @@ import {
   CreateSpecializationDto,
   UpdateSpecializationDto
 } from './dto/doctor.dto';
+import {
+  CreateExaminationPackageDto,
+  UpdateExaminationPackageDto
+} from './dto/examination-package.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('doctors')
 @Controller('doctors')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth('JWT-auth')
 export class DoctorsController {
   constructor(private doctorsService: DoctorsService) { }
 
@@ -87,11 +89,9 @@ export class DoctorsController {
   }
 }
 
-// ============= SPECIALIZATIONS API (Giữ nguyên) =============
+// ============= SPECIALIZATIONS API (Public GET, Protected CRUD) =============
 @ApiTags('specializations')
 @Controller('specializations')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth('JWT-auth')
 export class SpecializationsController {
   constructor(private doctorsService: DoctorsService) { }
 
@@ -106,11 +106,15 @@ export class SpecializationsController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   async createSpecialization(@Body(ValidationPipe) dto: CreateSpecializationDto) {
     return this.doctorsService.createSpecialization(dto);
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   async updateSpecialization(
     @Param('id') id: string,
     @Body(ValidationPipe) dto: UpdateSpecializationDto,
@@ -119,7 +123,50 @@ export class SpecializationsController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   async deleteSpecialization(@Param('id') id: string) {
     return this.doctorsService.deleteSpecialization(id);
+  }
+}
+
+// ============= EXAMINATION PACKAGES API (Public GET, Protected CRUD) =============
+@ApiTags('examination-packages')
+@Controller('examination-packages')
+export class ExaminationPackagesController {
+  constructor(private doctorsService: DoctorsService) {}
+
+  @Get()
+  async getAllExaminationPackages(@Query('specialization_id') specializationId?: string) {
+    return this.doctorsService.getAllExaminationPackages(specializationId);
+  }
+
+  @Get(':id')
+  async getExaminationPackageById(@Param('id') id: string) {
+    return this.doctorsService.getExaminationPackageById(id);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async createExaminationPackage(@Body(ValidationPipe) dto: CreateExaminationPackageDto) {
+    return this.doctorsService.createExaminationPackage(dto);
+  }
+
+  @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async updateExaminationPackage(
+    @Param('id') id: string,
+    @Body(ValidationPipe) dto: UpdateExaminationPackageDto,
+  ) {
+    return this.doctorsService.updateExaminationPackage(id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async deleteExaminationPackage(@Param('id') id: string) {
+    return this.doctorsService.deleteExaminationPackage(id);
   }
 }

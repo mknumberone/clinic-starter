@@ -1,3 +1,5 @@
+// File: src/chat/chat.service.ts
+
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -5,68 +7,64 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ChatService {
     constructor(private prisma: PrismaService) { }
 
+    // 1. Lưu tin nhắn & Cập nhật thời gian hội thoại (Dùng Transaction)
     async saveMessage(conversationId: string, senderId: string, content: string, type: 'TEXT' | 'IMAGE' | 'FILE' = 'TEXT') {
-        return this.prisma.message.create({
-            data: {
-                conversation_id: conversationId,
-                sender_id: senderId,
-                content: content,
-                type: type, // Lưu loại tin nhắn
-                is_read: false,
-            },
-            include: {
-                sender: { select: { id: true, full_name: true, avatar: true } },
-            },
-        });
-    }
-
-    async getMessages(conversationId: string) {
-        return this.prisma.message.findMany({
-            where: { conversation_id: conversationId },
-            include: {
-                sender: { select: { id: true, full_name: true, avatar: true } },
-            },
-            orderBy: { created_at: 'asc' },
-        });
-    }
-
-    async getOrCreateConversation(userA: string, userB: string) {
-        const existing = await this.prisma.conversation.findFirst({
-            where: {
-                AND: [
-                    { participants: { some: { user_id: userA } } },
-                    { participants: { some: { user_id: userB } } },
-                ],
-            },
-            include: { participants: { include: { user: true } } }
-        });
-
-        if (existing) return existing;
-
-        const uniqueIds = Array.from(new Set([userA, userB]));
-        return this.prisma.conversation.create({
-            data: {
-                participants: {
-                    create: uniqueIds.map((id) => ({ user_id: id })),
+        return this.prisma.$transaction(async (tx) => {
+            // A. Tạo tin nhắn mới
+            const message = await tx.message.create({
+                data: {
+                    conversation_id: conversationId,
+                    sender_id: senderId,
+                    content: content,
+                    type: type,
+                    is_read: false,
                 },
-            },
-            include: { participants: { include: { user: true } } }
+                include: {
+                    sender: { select: { id: true, full_name: true, avatar: true } },
+                },
+            });
+
+            // B. [QUAN TRỌNG] Update 'updated_at' của Conversation để nó nhảy lên đầu danh sách
+            await tx.conversation.update({
+                where: { id: conversationId },
+                data: { updated_at: new Date() }
+            });
+
+            return message;
         });
     }
 
-    // --- CẬP NHẬT HÀM NÀY ---
-    async getAllConversations(currentUserId: string, role: string) {
+    // 2. Lấy danh sách hội thoại (Có Tìm kiếm & Sắp xếp)
+    async getAllConversations(currentUserId: string, role: string, search?: string) {
+        // Phân quyền: Admin/Staff thấy hết, User thường chỉ thấy của mình
+        const isAdminOrStaff = ['ADMIN', 'RECEPTIONIST', 'DOCTOR', 'BRANCH_MANAGER'].includes(role);
 
-        // Logic lọc:
-        // 1. Nếu là PATIENT (Bệnh nhân): Chỉ xem hội thoại của chính mình.
-        // 2. Nếu là ADMIN, BRANCH_MANAGER, RECEPTIONIST: Xem ĐƯỢC TẤT CẢ hội thoại.
+        let whereCondition: any = {};
 
-        const isAdminOrStaff = ['ADMIN', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(role);
+        // Nếu không phải Admin/Staff, bắt buộc lọc theo user đang đăng nhập
+        if (!isAdminOrStaff) {
+            whereCondition = {
+                participants: { some: { user_id: currentUserId } }
+            };
+        }
 
-        const whereCondition = isAdminOrStaff
-            ? {} // Nếu là nhân viên -> Không lọc (lấy hết)
-            : { participants: { some: { user_id: currentUserId } } }; // Nếu là khách -> Lọc theo ID
+        // Logic Tìm kiếm: Lọc các hội thoại có thành viên tên chứa từ khóa (không phân biệt hoa thường)
+        if (search && search.trim() !== '') {
+            whereCondition = {
+                ...whereCondition, // Giữ lại điều kiện phân quyền (nếu có)
+                participants: {
+                    some: {
+                        user: {
+                            full_name: { contains: search, mode: 'insensitive' },
+                            // Có thể thêm điều kiện loại trừ chính mình nếu muốn:
+                            // id: { not: currentUserId } 
+                        }
+                    }
+                }
+            };
+        }
 
+        // Query Database
         const conversations = await this.prisma.conversation.findMany({
             where: whereCondition,
             include: {
@@ -76,7 +74,7 @@ export class ChatService {
                     }
                 },
                 messages: {
-                    take: 1,
+                    take: 1, // Chỉ lấy 1 tin nhắn cuối cùng để hiển thị preview
                     orderBy: { created_at: 'desc' }
                 },
                 _count: {
@@ -84,19 +82,33 @@ export class ChatService {
                         messages: {
                             where: {
                                 is_read: false,
-                                sender_id: { not: currentUserId }
+                                sender_id: { not: currentUserId } // Đếm tin chưa đọc từ người khác
                             }
                         }
                     }
                 }
             },
+            // [QUAN TRỌNG] Sắp xếp theo thời gian cập nhật mới nhất (tin nhắn mới nhất)
             orderBy: { updated_at: 'desc' }
         });
 
+        // Map dữ liệu để Frontend dễ dùng
         return conversations.map(c => ({
             ...c,
-            unread_count: c._count.messages
+            last_message: c.messages[0] || null, // Tin nhắn cuối
+            unread_count: c._count.messages      // Số tin chưa đọc
         }));
+    }
+
+    // 3. Các hàm phụ trợ khác (Giữ nguyên hoặc tối ưu nhẹ)
+    async getMessages(conversationId: string) {
+        return this.prisma.message.findMany({
+            where: { conversation_id: conversationId },
+            include: {
+                sender: { select: { id: true, full_name: true, avatar: true } },
+            },
+            orderBy: { created_at: 'asc' },
+        });
     }
 
     async markAsRead(conversationId: string, userId: string) {
@@ -109,5 +121,36 @@ export class ChatService {
             data: { is_read: true }
         });
         return { success: true };
+    }
+
+    async getOrCreateConversation(userA: string, userB: string) {
+        const existing = await this.prisma.conversation.findFirst({
+            where: {
+                AND: [
+                    { participants: { some: { user_id: userA } } },
+                    { participants: { some: { user_id: userB } } },
+                ]
+            }
+        });
+
+        if (existing) {
+            // Nếu đã có, update lại thời gian để nó nổi lên đầu
+            await this.prisma.conversation.update({
+                where: { id: existing.id },
+                data: { updated_at: new Date() }
+            });
+            return existing;
+        }
+
+        return this.prisma.conversation.create({
+            data: {
+                participants: {
+                    create: [
+                        { user_id: userA },
+                        { user_id: userB }
+                    ]
+                }
+            }
+        });
     }
 }

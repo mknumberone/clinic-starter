@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateMedicalRecordDto } from './dto/create-medical-record.dto';
 import { AppointmentStatus } from '@prisma/client';
 
+
 @Injectable()
 export class MedicalRecordsService {
     constructor(private prisma: PrismaService) { }
@@ -62,4 +63,6 @@ export class MedicalRecordsService {
             orderBy: { created_at: 'desc' }
         });
     }
+
+
 }

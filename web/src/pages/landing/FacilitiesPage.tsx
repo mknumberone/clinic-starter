@@ -70,8 +70,8 @@ export default function FacilitiesPage() {
             <Navbar />
 
             {/* 1. HERO BANNER */}
-            <section className="pt-36 pb-16 bg-[#003553] text-white text-center">
-                <div className="max-w-[1440px] mx-auto px-4">
+            <section className="mt-[90px] pt-24 pb-16 bg-[#003553] text-white text-center">
+                <div className="landing-container">
                     <h1 className="text-3xl md:text-5xl font-extrabold mb-4 animate-fade-in-up">
                         Hệ thống Cơ sở & Vật chất
                     </h1>
@@ -84,7 +84,7 @@ export default function FacilitiesPage() {
 
             {/* 2. TAB MENU (CHUYỂN ĐỔI KHU VỰC) */}
             <section className="sticky top-[90px] z-40 bg-white shadow-sm border-b border-gray-100">
-                <div className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-20">
+                <div className="landing-container">
                     <div className="flex justify-center gap-8 md:gap-16 py-4 overflow-x-auto">
                         {facilities.map((item) => (
                             <button
@@ -106,7 +106,7 @@ export default function FacilitiesPage() {
 
             {/* 3. NỘI DUNG CHI TIẾT + BẢN ĐỒ */}
             <section className="py-16 bg-[#f8fbff]">
-                <div className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-20 animate-fade-in-up">
+                <div className="landing-container animate-fade-in-up">
                     <Row gutter={[48, 32]}>
                         {/* CỘT TRÁI: THÔNG TIN */}
                         <Col xs={24} lg={10}>
@@ -185,7 +185,7 @@ export default function FacilitiesPage() {
 
             {/* 4. HÌNH ẢNH PHÒNG KHÁM */}
             <section className="py-16 bg-white">
-                <div className="max-w-[1440px] mx-auto px-4 md:px-12 lg:px-20">
+                <div className="landing-container">
                     <h3 className="text-2xl font-bold text-[#003553] mb-8 uppercase tracking-wide border-l-4 border-[#009CAA] pl-4">
                         Hình ảnh phòng khám
                     </h3>

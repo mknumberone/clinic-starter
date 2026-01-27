@@ -16,16 +16,17 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     isConnected: false,
 
     connect: (token: string) => {
-        // Nếu đã có socket và đang connect rồi thì thôi
-        if (get().socket?.connected) {
-            console.log('Socket already connected');
+        // Nếu đã có socket và đang connect rồi với cùng token thì thôi
+        const currentSocket = get().socket;
+        if (currentSocket?.connected) {
+            console.log('Socket already connected, skipping...');
             return;
         }
 
-        // Disconnect socket cũ nếu có
-        const oldSocket = get().socket;
-        if (oldSocket) {
-            oldSocket.disconnect();
+        // Disconnect socket cũ nếu có (nhưng chưa connected)
+        if (currentSocket && !currentSocket.connected) {
+            console.log('Disconnecting old socket that was not connected');
+            currentSocket.disconnect();
         }
 
         console.log('🔌 Connecting to socket:', SOCKET_URL, 'with token:', token ? 'Token exists' : 'No token');

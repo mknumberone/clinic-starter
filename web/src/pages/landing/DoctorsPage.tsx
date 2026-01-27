@@ -121,7 +121,7 @@ export default function DoctorsPage() {
             <Navbar />
 
             {/* 1. HERO BANNER */}
-            <section className="pt-36 pb-20 bg-[#003553] text-white text-center relative overflow-hidden">
+            <section className="mt-[90px] pt-24 pb-20 bg-[#003553] text-white text-center relative overflow-hidden">
                 <div className="max-w-[1440px] mx-auto px-4 relative z-10">
                     <h1 className="text-3xl md:text-5xl font-extrabold mb-4 animate-fade-in-up">
                         Đội ngũ Chuyên gia & Bác sĩ
@@ -148,7 +148,7 @@ export default function DoctorsPage() {
             </section>
 
             {/* 2. MAIN CONTENT */}
-            <section className="py-12 max-w-[1440px] mx-auto px-4 md:px-12 lg:px-20">
+            <section className="py-12 landing-container">
 
                 {/* Tabs Filter */}
                 <div className="flex justify-center mb-12">
