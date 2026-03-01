@@ -9,3 +9,7 @@ dist
 # Upload files
 uploads/
 !uploads/.gitkeep
+
+# Firebase service account (chứa private key, không commit)
+firebase-service-account.json
+*-service-account.json

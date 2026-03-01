@@ -16,6 +16,17 @@ export interface LoginDto {
   otp: string;
 }
 
+/** Dùng sau khi xác thực OTP bằng Firebase (frontend gọi confirmationResult.confirm(code) -> lấy idToken) */
+export interface FirebasePhoneRegisterDto {
+  idToken: string;
+  full_name: string;
+  email?: string;
+}
+
+export interface FirebasePhoneLoginDto {
+  idToken: string;
+}
+
 export interface RegisterEmailDto {
   email: string;
   password: string;
@@ -53,6 +64,18 @@ export const authService = {
 
   login: async (data: LoginDto): Promise<AuthResponse> => {
     const response = await axiosInstance.post<AuthResponse>('/auth/login', data);
+    return response.data;
+  },
+
+  /** Đăng ký bằng SĐT + Firebase OTP (sau khi xác thực OTP bằng Firebase SDK, gửi idToken lên) */
+  registerPhoneFirebase: async (data: FirebasePhoneRegisterDto): Promise<AuthResponse> => {
+    const response = await axiosInstance.post<AuthResponse>('/auth/phone/register', data);
+    return response.data;
+  },
+
+  /** Đăng nhập bằng SĐT + Firebase OTP */
+  loginPhoneFirebase: async (data: FirebasePhoneLoginDto): Promise<AuthResponse> => {
+    const response = await axiosInstance.post<AuthResponse>('/auth/phone/login', data);
     return response.data;
   },
 

@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { MailerService } from '@nestjs-modules/mailer';
+import { SmsService } from '../sms/sms.service';
 import {
   SendOtpDto,
   VerifyOtpDto,
@@ -17,8 +18,11 @@ import {
   LoginDto,
   RegisterEmailDto,
   LoginEmailDto,
-  ResendVerificationDto
+  ResendVerificationDto,
+  FirebasePhoneRegisterDto,
+  FirebasePhoneLoginDto,
 } from './dto/auth.dto';
+import { FirebaseService } from '../firebase/firebase.service';
 import * as bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,8 +38,10 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private redisService: RedisService,
-    private mailerService: MailerService, // Đã thêm để sửa lỗi Property 'mailerService' does not exist
-  ) { }
+    private mailerService: MailerService,
+    private smsService: SmsService,
+    private firebaseService: FirebaseService,
+  ) {}
 
   // --- HÀM HỖ TRỢ CHUẨN HÓA ---
   private normalizePhone(phone: string): string {
@@ -242,7 +248,48 @@ export class AuthService {
     return this.generateToken(user);
   }
 
-  // --- LOGIC XÁC THỰC BẰNG OTP (SĐT) ---
+  // --- LOGIC ĐĂNG NHẬP BẰNG FIREBASE PHONE ---
+  // Frontend dùng Firebase SDK gửi OTP, xác thực OTP, lấy ID token rồi gửi lên backend.
+  async registerWithFirebasePhone(dto: FirebasePhoneRegisterDto) {
+    const decoded = await this.firebaseService.verifyIdToken(dto.idToken);
+    const phone = decoded.phone_number ? this.normalizePhone(decoded.phone_number) : null;
+    if (!phone) throw new BadRequestException('Firebase token không chứa số điện thoại');
+
+    const existingUser = await this.prisma.user.findFirst({ where: { phone } });
+    if (existingUser) throw new ConflictException('Số điện thoại này đã được đăng ký');
+
+    const createdUser = await this.prisma.user.create({
+      data: {
+        phone,
+        full_name: dto.full_name,
+        email: dto.email || null,
+        role: 'PATIENT',
+        is_verified: true,
+      },
+    });
+    await this.prisma.patient.create({ data: { user_id: createdUser.id } });
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: createdUser.id },
+      include: { patient: true, doctor: true },
+    }) as UserWithRelations;
+    return this.generateToken(user);
+  }
+
+  async loginWithFirebasePhone(dto: FirebasePhoneLoginDto) {
+    const decoded = await this.firebaseService.verifyIdToken(dto.idToken);
+    const phone = decoded.phone_number ? this.normalizePhone(decoded.phone_number) : null;
+    if (!phone) throw new BadRequestException('Firebase token không chứa số điện thoại');
+
+    const user = await this.prisma.user.findFirst({
+      where: { phone },
+      include: { patient: true, doctor: true },
+    }) as UserWithRelations | null;
+    if (!user) throw new UnauthorizedException('Số điện thoại chưa được đăng ký');
+    return this.generateToken(user);
+  }
+
+  // --- LOGIC XÁC THỰC BẰNG OTP (SĐT - eSMS) ---
 
   async sendOtp(dto: SendOtpDto) {
     const phone = this.normalizePhone(dto.phone);
@@ -251,6 +298,11 @@ export class AuthService {
 
     await this.redisService.set(otpKey, otp, 300); // Hết hạn sau 5 phút
     console.log(`[OTP DEBUG] Số: ${phone} - Mã: ${otp}`);
+
+    // Gửi SMS (thật hoặc mock tuỳ ENABLE_REAL_SMS)
+    // Nội dung ưu tiên không dấu để tránh lỗi hiển thị
+    const content = `Ma OTP cua ban la: ${otp}. Hieu luc 5 phut.`;
+    await this.smsService.sendSms(phone, content);
 
     return { message: 'Mã OTP đã được gửi', expiresIn: 300 };
   }

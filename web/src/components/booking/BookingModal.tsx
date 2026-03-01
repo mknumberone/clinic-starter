@@ -182,7 +182,8 @@ export default function BookingModal() {
                             <DatePicker
                                 style={{ width: '100%' }}
                                 format="DD/MM/YYYY"
-                                disabledDate={(current) => current && current < dayjs().endOf('day')}
+                                // Chỉ chặn các ngày trong quá khứ; vẫn cho phép đặt trong ngày (slot sẽ tự lọc theo giờ hiện tại)
+                                disabledDate={(current) => current && current < dayjs().startOf('day')}
                                 onChange={(date) => setSelectedDate(date)}
                                 suffixIcon={<CalendarOutlined />}
                             />

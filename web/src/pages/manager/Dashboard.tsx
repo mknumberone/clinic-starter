@@ -1,11 +1,12 @@
 // src/pages/manager/Dashboard.tsx
 
 import { useQuery } from '@tanstack/react-query';
-import { Card, Row, Col, Statistic, Spin, Alert, Typography, Divider, Table, Tag } from 'antd';
-import { CalendarOutlined, DollarOutlined, UserOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Statistic, Spin, Typography, Divider, Table, Tag } from 'antd';
+import { CalendarOutlined, DollarOutlined, UserOutlined } from '@ant-design/icons';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { dashboardService } from '@/services/dashboard.service';
 import { useAuthStore } from '@/stores/authStore';
+import { appointmentService } from '@/services/appointment.service';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -13,37 +14,31 @@ const { Title, Text } = Typography;
 export default function ManagerDashboard() {
     const { user } = useAuthStore();
 
-    // 1. Lấy thông tin Dashboard chung (dùng API Admin hoặc API Dashboard chung nếu có)
-    // Ở đây, chúng ta sẽ gọi API của Admin, nhưng Backend sẽ tự lọc theo branch_id
     const { data: stats, isLoading: loadingStats } = useQuery({
         queryKey: ['manager-admin-stats'],
         queryFn: () => dashboardService.getAdminStats(),
         enabled: !!user?.branch_id,
+        refetchInterval: 30000,
     });
 
-    // <<<<<<< HEAD
-    // 2. Lấy danh sách lịch hẹn sắp tới
-    const { data: upcomingAppointments, isLoading: loadingAppts } = useQuery({
+    const { data: upcomingAppointments } = useQuery({
         queryKey: ['manager-upcoming-appointments'],
         queryFn: () => dashboardService.getAdminUpcomingAppointments(5),
         enabled: !!user?.branch_id,
+        refetchInterval: 30000,
     });
 
-    // Cần phải có API để lấy thống kê Lịch trực của Chi nhánh (Backend đã có logic này)
-    const { data: shifts, isLoading: loadingShifts } = useQuery({
-        queryKey: ['manager-shifts-today'],
-        queryFn: async () => {
-            // Gọi API lấy shifts, lọc theo ngày hôm nay
-            const res = await dashboardService.getAdminAppointments({
-                startDate: dayjs().startOf('day').toISOString(),
-                endDate: dayjs().endOf('day').toISOString()
-            });
-            // Giả định API Admin Appointments trả về lịch hẹn.
-            // Để lấy Lịch trực, cần phải gọi API GET /shifts
-            // Ở đây, tạm thời reuse Appointment API để lấy dữ liệu về lịch hẹn trong ngày.
-            return res;
-        },
+    const { data: todayAppointmentsData } = useQuery({
+        queryKey: ['manager-today-appointments', user?.branch_id],
+        queryFn: () =>
+            appointmentService.getAppointments({
+                startDate: dayjs().startOf('day').format('YYYY-MM-DD'),
+                endDate: dayjs().endOf('day').format('YYYY-MM-DD'),
+                ...(user?.branch_id ? { branchId: user.branch_id } : {}),
+                limit: 100,
+            }),
         enabled: !!user?.branch_id,
+        refetchInterval: 30000,
     });
 
     // Nếu Dashboard đang load hoặc không có branch_id
@@ -58,19 +53,14 @@ export default function ManagerDashboard() {
     }
 
     const upcomingApptData = Array.isArray(upcomingAppointments) ? upcomingAppointments : [];
-    const todayAppointments = Array.isArray(shifts) ? shifts : [];
+    const todayAppointments = todayAppointmentsData?.data ?? [];
 
-    // Cột cho Lịch hẹn sắp tới
     const apptColumns = [
-        { title: 'Giờ', dataIndex: 'start_time', render: (t: string) => dayjs(t).format('HH:mm') },
-        { title: 'Bệnh nhân', render: (r: any) => r.patient?.user?.full_name || 'N/A' },
-        { title: 'Bác sĩ', render: (r: any) => r.doctor?.user?.full_name || 'Đang xếp' },
-        { title: 'Phòng', dataIndex: ['room', 'code'], render: (c: string) => <Tag>{c}</Tag> },
+        { title: 'Giờ', dataIndex: 'start_time', render: (t: any) => t ? dayjs(t).format('HH:mm') : '--' },
+        { title: 'Bệnh nhân', render: (_: any, r: any) => r.patient?.user?.full_name || 'N/A' },
+        { title: 'Bác sĩ', render: (_: any, r: any) => r.doctor?.user?.full_name || 'Đang xếp' },
+        { title: 'Phòng', render: (_: any, r: any) => <Tag>{r.room?.code || r.room?.name || '--'}</Tag> },
     ];
-    // =======
-    // // Debug: Check dashboard structure
-    // console.log('Dashboard data:', dashboard);
-    // // >>>>>>> 9a79bf37bb3c16df3400143c05117f4a818e9768
 
     return (
         <DashboardLayout>

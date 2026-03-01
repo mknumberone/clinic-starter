@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Modal, Tabs, Form, Input, Button, message, Steps, Radio } from 'antd';
+import { useState, useEffect, useRef } from 'react';
+import { Modal, Tabs, Form, Input, Button, message, Steps, Radio, Checkbox } from 'antd';
 import { PhoneOutlined, SafetyOutlined, UserOutlined, MailOutlined, LockOutlined } from '@ant-design/icons';
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { useAuthModalStore } from '@/stores/authModalStore';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/stores/authStore';
 import { useNavigate } from 'react-router-dom';
+import { auth, toE164 } from '@/lib/firebase';
 
 const { Step } = Steps;
 
@@ -20,12 +22,19 @@ export default function AuthModal() {
     const [currentStep, setCurrentStep] = useState(0);
     const [phone, setPhone] = useState('');
     const [authMethod, setAuthMethod] = useState<AuthMethod>('phone');
+    /** Bật = dùng backend OTP mẫu (123456), không gửi SMS thật. Tắt = dùng Firebase gửi OTP thật. */
+    const [useSamplePhoneMode, setUseSamplePhoneMode] = useState(true);
+
+    // Firebase Phone Auth: lưu confirmationResult sau khi gửi OTP
+    const confirmationResultRef = useRef<{ confirm: (code: string) => Promise<any> } | null>(null);
+    const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (isOpen) {
             setCurrentStep(0);
             setPhone('');
-            setAuthMethod('phone'); // Reset về phone mỗi khi mở modal
+            setAuthMethod('phone');
+            confirmationResultRef.current = null;
         }
     }, [isOpen, view]);
 
@@ -56,12 +65,29 @@ export default function AuthModal() {
     const handleSendOtp = async (values: { phone: string }) => {
         try {
             setLoading(true);
-            await authService.sendOtp({ phone: values.phone });
+            if (useSamplePhoneMode) {
+                await authService.sendOtp({ phone: values.phone });
+                setPhone(values.phone);
+                setCurrentStep(1);
+                message.success('Mã OTP mẫu: 123456');
+                return;
+            }
+            const phoneE164 = toE164(values.phone);
+            if (!recaptchaContainerRef.current) throw new Error('Recaptcha container chưa sẵn sàng');
+            recaptchaContainerRef.current.innerHTML = '';
+            // Firebase v9+ / v12: new RecaptchaVerifier(auth, container, options)
+            const recaptchaVerifier = new RecaptchaVerifier(
+                auth,
+                recaptchaContainerRef.current,
+                { size: 'invisible' }
+            );
+            const confirmationResult = await signInWithPhoneNumber(auth, phoneE164, recaptchaVerifier);
+            confirmationResultRef.current = confirmationResult;
             setPhone(values.phone);
             setCurrentStep(1);
-            message.success('Mã OTP: 123456');
+            message.success('Mã OTP đã được gửi đến số điện thoại của bạn');
         } catch (error: any) {
-            message.error(error.response?.data?.message || 'Gửi OTP thất bại');
+            message.error(error?.message || error?.response?.data?.message || 'Gửi OTP thất bại');
         } finally {
             setLoading(false);
         }
@@ -70,7 +96,18 @@ export default function AuthModal() {
     const handleLoginVerify = async (values: { otp: string }) => {
         try {
             setLoading(true);
-            const response = await authService.login({ phone, otp: values.otp });
+            if (useSamplePhoneMode) {
+                const response = await authService.login({ phone, otp: values.otp });
+                const token = response.access_token || response.token;
+                if (!token) throw new Error('Không nhận được token');
+                handleAuthSuccess(token, response.user);
+                return;
+            }
+            const confirmation = confirmationResultRef.current;
+            if (!confirmation) throw new Error('Vui lòng gửi lại OTP');
+            const result = await confirmation.confirm(values.otp);
+            const idToken = await result.user.getIdToken();
+            const response = await authService.loginPhoneFirebase({ idToken });
             const token = response.access_token || response.token;
             if (!token) throw new Error('Không nhận được token');
             handleAuthSuccess(token, response.user);
@@ -84,9 +121,24 @@ export default function AuthModal() {
     const handleRegisterVerify = async (values: any) => {
         try {
             setLoading(true);
-            const response = await authService.register({
-                phone,
-                otp: values.otp,
+            if (useSamplePhoneMode) {
+                const response = await authService.register({
+                    phone,
+                    otp: values.otp,
+                    full_name: values.full_name,
+                    email: values.email,
+                });
+                const token = response.access_token || response.token;
+                if (!token) throw new Error('Không nhận được token');
+                handleAuthSuccess(token, response.user);
+                return;
+            }
+            const confirmation = confirmationResultRef.current;
+            if (!confirmation) throw new Error('Vui lòng gửi lại OTP');
+            const result = await confirmation.confirm(values.otp);
+            const idToken = await result.user.getIdToken();
+            const response = await authService.registerPhoneFirebase({
+                idToken,
                 full_name: values.full_name,
                 email: values.email,
             });
@@ -94,7 +146,7 @@ export default function AuthModal() {
             if (!token) throw new Error('Không nhận được token');
             handleAuthSuccess(token, response.user);
         } catch (error: any) {
-            message.error(error.response?.data?.message || 'Đăng ký thất bại');
+            message.error(error?.response?.data?.message || error?.message || 'Đăng ký thất bại');
         } finally {
             setLoading(false);
         }
@@ -164,6 +216,7 @@ export default function AuthModal() {
 
         return (
             <div className="pt-4">
+                <div ref={recaptchaContainerRef} style={{ position: 'absolute', left: -9999, width: 1, height: 1, overflow: 'hidden' }} aria-hidden="true" />
                 <Steps size="small" current={currentStep} className="mb-6">
                     <Step title="SĐT" icon={<PhoneOutlined />} />
                     <Step title="OTP" icon={<SafetyOutlined />} />
@@ -172,6 +225,11 @@ export default function AuthModal() {
                     <Form onFinish={handleSendOtp} layout="vertical">
                         <Form.Item name="phone" rules={[{ required: true, message: 'Nhập SĐT!', pattern: /^[0-9]{10}$/ }]}>
                             <Input prefix={<PhoneOutlined className="text-[#009CAA]" />} placeholder="09..." size="large" />
+                        </Form.Item>
+                        <Form.Item>
+                            <Checkbox checked={useSamplePhoneMode} onChange={(e) => setUseSamplePhoneMode(e.target.checked)}>
+                                Dùng số mẫu (OTP: 123456)
+                            </Checkbox>
                         </Form.Item>
                         <Button type="primary" htmlType="submit" block size="large" loading={loading} className="bg-[#009CAA] font-bold">GỬI OTP</Button>
                     </Form>
@@ -211,6 +269,7 @@ export default function AuthModal() {
 
         return (
             <div className="pt-4">
+                <div ref={recaptchaContainerRef} style={{ position: 'absolute', left: -9999, width: 1, height: 1, overflow: 'hidden' }} aria-hidden="true" />
                 <Steps size="small" current={currentStep} className="mb-6">
                     <Step title="SĐT" icon={<PhoneOutlined />} />
                     <Step title="Thông tin" icon={<UserOutlined />} />
@@ -219,6 +278,11 @@ export default function AuthModal() {
                     <Form onFinish={handleSendOtp} layout="vertical">
                         <Form.Item name="phone" rules={[{ required: true, message: 'Nhập SĐT!', pattern: /^[0-9]{10}$/ }]}>
                             <Input prefix={<PhoneOutlined className="text-[#009CAA]" />} placeholder="SĐT đăng ký" size="large" />
+                        </Form.Item>
+                        <Form.Item>
+                            <Checkbox checked={useSamplePhoneMode} onChange={(e) => setUseSamplePhoneMode(e.target.checked)}>
+                                Dùng số mẫu (OTP: 123456)
+                            </Checkbox>
                         </Form.Item>
                         <Button type="primary" htmlType="submit" block size="large" loading={loading} className="bg-[#009CAA] font-bold">TIẾP TỤC</Button>
                     </Form>

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { MailerModule } from '@nestjs-modules/mailer';
 import { ServeStaticModule } from '@nestjs/serve-static'; // Cài đặt: npm i @nestjs/serve-static
 import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
@@ -24,11 +25,28 @@ import { ChatModule } from './chat/chat.module';
 import { UsersModule } from './users/users.module'; // <--- Import này
 import { MedicationsModule } from './medications/medications.module';
 import { NewsModule } from './news/news.module';
+import { SmsModule } from './sms/sms.module';
+import { FirebaseModule } from './firebase/firebase.module';
+import { ContactsModule } from './contacts/contacts.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    MailerModule.forRoot({
+      transport: {
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: process.env.MAIL_USER || 'nonghainam433@gmail.com',
+          pass: process.env.MAIL_PASS || 'fsci qiaj dvqk qktl',
+        },
+      },
+      defaults: {
+        from: '"Phòng khám Clinic" <nonghainam433@gmail.com>',
+      },
     }),
     PrismaModule,
     RedisModule,
@@ -50,6 +68,9 @@ import { NewsModule } from './news/news.module';
     UploadModule,
     ChatModule,
     NewsModule,
+    SmsModule,
+    FirebaseModule,
+    ContactsModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'), // Trỏ ra thư mục uploads ở gốc dự án
       serveRoot: '/uploads', // Đường dẫn truy cập: http://localhost:3000/uploads/ten-anh.jpg

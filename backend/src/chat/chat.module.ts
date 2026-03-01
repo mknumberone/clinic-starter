@@ -30,6 +30,6 @@ import { ChatController } from './chat.controller'; // <--- Import
     ],
     controllers: [ChatController], // <--- Thêm dòng này
     providers: [ChatGateway, ChatService],
-    exports: [ChatService],
+    exports: [ChatService, ChatGateway],
 })
 export class ChatModule { }

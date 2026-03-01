@@ -172,15 +172,23 @@ export const appointmentService = {
     });
   },
 
-  // Lấy giờ khám trống ( QUAN TRỌNG: Hàm này nhận 4 tham số)
-  getAvailableSlots: (branchId: string, specialtyId: string, date: string, doctorId?: string) => {
-    const params = {
-      branch_id: branchId,
-      specialization_id: specialtyId,
-      date: date,
-      doctor_id: doctorId || undefined
-    };
-    return axiosInstance.get('/appointments/available-slots', { params }).then(res => res.data);
+  // Lấy giờ khám trống (nhận object hoặc 4 tham số vị trí để tương thích)
+  getAvailableSlots: (
+    branchIdOrParams: string | { branch_id: string; specialization_id?: string; date: string; doctor_id?: string },
+    specialtyId?: string,
+    dateStr?: string,
+    doctorId?: string
+  ) => {
+    const params =
+      typeof branchIdOrParams === 'object'
+        ? { ...branchIdOrParams }
+        : {
+            branch_id: branchIdOrParams,
+            specialization_id: specialtyId,
+            date: dateStr,
+            doctor_id: doctorId
+          };
+    return axiosInstance.get('/appointments/available-slots', { params }).then((res) => (Array.isArray(res.data) ? res.data : []));
   },
 
   // Tạo lịch hẹn

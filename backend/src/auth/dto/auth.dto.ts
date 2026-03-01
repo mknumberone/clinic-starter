@@ -146,3 +146,41 @@ export class ResendVerificationDto {
   @IsNotEmpty({ message: 'Email không được để trống' })
   email: string;
 }
+
+/** Dùng sau khi frontend xác thực OTP bằng Firebase -> gửi ID token lên backend */
+export class FirebasePhoneRegisterDto {
+  @ApiProperty({
+    example: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'Firebase ID token (sau khi user nhập OTP và Firebase verify thành công)'
+  })
+  @IsNotEmpty({ message: 'ID token không được để trống' })
+  @IsString()
+  idToken: string;
+
+  @ApiProperty({
+    example: 'Nguyễn Văn A',
+    description: 'Họ và tên đầy đủ'
+  })
+  @IsNotEmpty({ message: 'Họ tên không được để trống' })
+  @IsString()
+  full_name: string;
+
+  @ApiProperty({
+    example: 'nguyenvana@gmail.com',
+    description: 'Email (không bắt buộc)',
+    required: false
+  })
+  @IsOptional()
+  @IsEmail({}, { message: 'Email không hợp lệ' })
+  email?: string;
+}
+
+export class FirebasePhoneLoginDto {
+  @ApiProperty({
+    example: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'Firebase ID token (sau khi user nhập OTP và Firebase verify thành công)'
+  })
+  @IsNotEmpty({ message: 'ID token không được để trống' })
+  @IsString()
+  idToken: string;
+}

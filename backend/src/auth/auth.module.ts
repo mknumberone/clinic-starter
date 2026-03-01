@@ -6,13 +6,17 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { MailerModule } from '@nestjs-modules/mailer';
-import { PrismaModule } from '../prisma/prisma.module'; // Đảm bảo có PrismaModule
-import { RedisModule } from '../redis/redis.module';   // Đảm bảo có RedisModule
+import { PrismaModule } from '../prisma/prisma.module';
+import { RedisModule } from '../redis/redis.module';
+import { SmsModule } from '../sms/sms.module';
+import { FirebaseModule } from '../firebase/firebase.module';
 
 @Module({
   imports: [
     PrismaModule,
     RedisModule,
+    SmsModule,
+    FirebaseModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -23,21 +27,6 @@ import { RedisModule } from '../redis/redis.module';   // Đảm bảo có Redis
           expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '7d',
         } as any,
       }),
-    }),
-
-    MailerModule.forRoot({
-      transport: {
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true, // dùng cổng 465
-        auth: {
-          user: 'nonghainam433@gmail.com',
-          pass: 'fsci qiaj dvqk qktl',
-        },
-      },
-      defaults: {
-        from: '"Phòng khám Clinic" <nonghainam433@gmail.com>',
-      },
     }),
   ],
   controllers: [AuthController],

@@ -37,6 +37,7 @@ import ShiftManagement from './pages/admin/ShiftManagement';
 import MedicationManagement from './pages/admin/MedicationManagement';
 import AttendanceTracking from './pages/admin/AttendanceTracking';
 import NewsManagement from './pages/admin/NewsManagement';
+import ContactManagement from './pages/admin/ContactManagement';
 
 // --- DOCTOR PAGES ---
 import DoctorDashboard from './pages/doctor/Dashboard';
@@ -345,7 +346,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
-
+            <Route
+              path="/admin/contacts"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <ContactManagement />
+                </ProtectedRoute>
+              }
+            />
 
             {/* ================= DOCTOR ROUTES ================= */}
             <Route

@@ -2,9 +2,30 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, Row, Col, Statistic, Spin } from 'antd';
 import { CalendarOutlined, DollarOutlined, UserOutlined } from '@ant-design/icons';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { dashboardService } from '@/services/dashboard.service';
 
 export default function ReceptionistDashboard() {
-    // Tạm thời chưa gọi API thật để tránh lỗi, dùng UI tĩnh trước
+    const { data: stats, isLoading } = useQuery({
+        queryKey: ['receptionist-dashboard-stats'],
+        queryFn: () => dashboardService.getAdminStats(),
+    });
+
+    useQuery({
+        queryKey: ['receptionist-upcoming-appointments'],
+        queryFn: () => dashboardService.getAdminUpcomingAppointments(10),
+        refetchInterval: 30000,
+    });
+
+    if (isLoading) {
+        return (
+            <DashboardLayout>
+                <div className="flex justify-center items-center h-96">
+                    <Spin size="large" tip="Đang tải..." />
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout>
             <div className="p-6">
@@ -14,7 +35,7 @@ export default function ReceptionistDashboard() {
                         <Card>
                             <Statistic
                                 title="Chờ check-in"
-                                value={5}
+                                value={stats?.todayAppointments ?? 0}
                                 prefix={<UserOutlined />}
                                 valueStyle={{ color: '#fa8c16' }}
                             />
@@ -24,7 +45,7 @@ export default function ReceptionistDashboard() {
                         <Card>
                             <Statistic
                                 title="Lịch hẹn hôm nay"
-                                value={12}
+                                value={stats?.todayAppointments ?? 0}
                                 prefix={<CalendarOutlined />}
                                 valueStyle={{ color: '#1890ff' }}
                             />
@@ -34,7 +55,7 @@ export default function ReceptionistDashboard() {
                         <Card>
                             <Statistic
                                 title="Hóa đơn chưa thu"
-                                value={3}
+                                value={stats?.pendingInvoices ?? 0}
                                 prefix={<DollarOutlined />}
                                 valueStyle={{ color: '#ff4d4f' }}
                             />

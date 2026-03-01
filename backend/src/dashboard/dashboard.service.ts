@@ -1,13 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChatService } from '../chat/chat.service';
+import { InventoryService } from '../inventory/inventory.service';
 import { AppointmentStatus, InvoiceStatus, Prisma } from '@prisma/client';
 
 const decimalToNumber = (value?: Prisma.Decimal | number | null) =>
   value ? Number(value) : 0;
 
+const EXPIRING_DAYS = 30;
+const LOW_STOCK_THRESHOLD = 10;
+
 @Injectable()
 export class DashboardService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private chatService: ChatService,
+    private inventoryService: InventoryService,
+  ) {}
 
   // Admin Dashboard Stats
   async getAdminStats() {
@@ -23,6 +32,12 @@ export class DashboardService {
       totalAppointments,
       pendingInvoices,
       totalRevenue,
+      totalBranches,
+      totalRooms,
+      totalSpecializations,
+      totalMedications,
+      totalNews,
+      appointmentByStatusRaw,
     ] = await Promise.all([
       this.prisma.patient.count(),
       this.prisma.doctor.count(),
@@ -45,7 +60,24 @@ export class DashboardService {
           amount: true,
         },
       }),
+      this.prisma.branch.count(),
+      this.prisma.room.count(),
+      this.prisma.specialization.count(),
+      this.prisma.medication.count(),
+      this.prisma.news.count(),
+      this.prisma.appointment.groupBy({
+        by: ['status'],
+        _count: { id: true },
+      }),
     ]);
+
+    const appointmentByStatus = (appointmentByStatusRaw ?? []).reduce(
+      (acc, item) => {
+        acc[item.status] = item._count.id;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return {
       totalPatients,
@@ -54,28 +86,36 @@ export class DashboardService {
       totalAppointments,
       pendingInvoices,
       totalRevenue: decimalToNumber(totalRevenue._sum.amount),
+      totalBranches,
+      totalRooms,
+      totalSpecializations,
+      totalMedications,
+      totalNews,
+      appointmentByStatus,
     };
   }
 
-  // Get appointments by date range
+  // Get appointments by date range (grouped by date for line chart)
   async getAppointmentsByDateRange(startDate: Date, endDate: Date) {
-    const appointments = await this.prisma.appointment.groupBy({
-      by: ['status'],
+    const appointments = await this.prisma.appointment.findMany({
       where: {
         start_time: {
           gte: startDate,
           lte: endDate,
         },
       },
-      _count: {
-        id: true,
-      },
+      select: { start_time: true },
     });
 
-    return appointments.map((item) => ({
-      status: item.status,
-      count: item._count.id,
-    }));
+    const byDate = appointments.reduce<Record<string, number>>((acc, a) => {
+      const d = a.start_time.toISOString().split('T')[0];
+      acc[d] = (acc[d] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(byDate)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   // Get revenue by date range
@@ -289,14 +329,19 @@ export class DashboardService {
     ]);
 
     return {
-      todayAppointments,
+      todayAppointments: todayAppointments.length,
+      todayAppointmentsList: todayAppointments,
       todayShifts,
       weeklyStats,
     };
   }
 
   // Get weekly appointment stats for doctor
-  private async getWeeklyAppointmentStats(doctorId: string) {
+  private async getWeeklyAppointmentStats(doctorId: string): Promise<{
+    total: number;
+    completed: number;
+    cancelled: number;
+  }> {
     const today = new Date();
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 7);
@@ -315,9 +360,65 @@ export class DashboardService {
       },
     });
 
-    return appointments.map((item) => ({
-      status: item.status,
-      count: item._count.id,
-    }));
+    let total = 0;
+    let completed = 0;
+    let cancelled = 0;
+    for (const item of appointments) {
+      total += item._count.id;
+      if (item.status === 'COMPLETED') completed = item._count.id;
+      if (item.status === 'CANCELLED') cancelled = item._count.id;
+    }
+    return { total, completed, cancelled };
+  }
+
+  /**
+   * Tổng hợp thông báo cho header (thuốc sắp hết hạn/hết, liên hệ mới, tin nhắn chưa đọc).
+   */
+  async getNotifications(userId: string, userRole: string, branchId?: string | null) {
+    const now = new Date();
+    const expiringLimit = new Date(now);
+    expiringLimit.setDate(expiringLimit.getDate() + EXPIRING_DAYS);
+
+    const [newContactsCount, conversations, inventory] = await Promise.all([
+      this.prisma.contact.count({ where: { status: 'NEW' } }),
+      this.chatService.getAllConversations(userId, userRole),
+      branchId ? this.inventoryService.getBranchInventory(branchId) : Promise.resolve([]),
+    ]);
+
+    const unreadMessagesCount = (conversations as any[]).reduce((sum, c) => sum + (c.unread_count || 0), 0);
+
+    const expiringMedications: { id: string; name: string; expiry_date: string; available_qty: number }[] = [];
+    const lowStockMedications: { id: string; name: string; available_qty: number }[] = [];
+
+    for (const med of inventory as any[]) {
+      const available = med.available_qty ?? 0;
+      if (available > 0 && available < LOW_STOCK_THRESHOLD) {
+        lowStockMedications.push({
+          id: med.id,
+          name: med.name,
+          available_qty: available,
+        });
+      }
+      const batches = med.inventories || [];
+      for (const batch of batches) {
+        const exp = batch.expiry_date ? new Date(batch.expiry_date) : null;
+        if (exp && exp > now && exp <= expiringLimit && (batch.quantity - (batch.pending_quantity || 0)) > 0) {
+          expiringMedications.push({
+            id: med.id,
+            name: med.name,
+            expiry_date: batch.expiry_date,
+            available_qty: batch.quantity - (batch.pending_quantity || 0),
+          });
+          break;
+        }
+      }
+    }
+
+    return {
+      newContactsCount,
+      unreadMessagesCount,
+      expiringMedications: expiringMedications.slice(0, 20),
+      lowStockMedications: lowStockMedications.slice(0, 20),
+    };
   }
 }

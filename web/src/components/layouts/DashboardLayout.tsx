@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Badge, Button, Select, Spin } from 'antd';
+import { useEffect, useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Layout, Menu, Avatar, Dropdown, Badge, Button, Select, Spin, notification, Popover } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
@@ -18,6 +19,7 @@ import {
   DatabaseOutlined,
   PlusOutlined,
   MessageOutlined,
+  MailOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -26,9 +28,12 @@ import { useAuthStore } from '@/stores/authStore';
 import { useBranchStore } from '@/stores/branchStore';
 import { branchesService } from '@/services/branches.service';
 import { useSocketStore } from '@/stores/socketStore';
+import { useNotificationStore } from '@/stores/notificationStore';
 import { useAuthModalStore } from '@/stores/authModalStore'; // Import Store Modal
 import ChatWidget from '@/components/chat/ChatWidget';
+import NotificationPopoverContent, { useNotificationCount } from '@/components/notifications/NotificationPopover';
 import AttendanceTracking from '@/pages/admin/AttendanceTracking';
+import dayjs from 'dayjs';
 
 const { Header, Sider, Content } = Layout;
 
@@ -39,12 +44,16 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [branchLoading, setBranchLoading] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   const { user, token, logout } = useAuthStore();
   const { branches, selectedBranch, setBranches, selectBranch } = useBranchStore();
-  const { connect, disconnect } = useSocketStore();
+  const { connect, disconnect, socket } = useSocketStore();
+  const queryClient = useQueryClient();
+  const { count: notificationCount } = useNotificationCount();
+  const notificationPermissionRequested = useRef(false);
 
   // --- LẤY HÀM MỞ POPUP TỪ STORE ---
   const { openLogin } = useAuthModalStore();
@@ -64,6 +73,57 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       disconnect();
     };
   }, [token, connect, disconnect]);
+
+  // Xin quyền thông báo trình duyệt (một lần) cho staff
+  useEffect(() => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default' && !notificationPermissionRequested.current) {
+      notificationPermissionRequested.current = true;
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Real-time: lắng nghe lịch hẹn mới — invalidate toàn bộ query liên quan và hiện thông báo (cho mọi trang: dashboard, danh sách lịch hẹn, v.v.)
+  useEffect(() => {
+    if (!socket || !user) return;
+    const onNewAppointment = (payload: { branchId?: string; appointment?: any }) => {
+      const keysToInvalidate = [
+        ['appointments'],
+        ['doctorDashboard'],
+        ['manager-admin-stats'],
+        ['manager-upcoming-appointments'],
+        ['manager-today-appointments'],
+        ['receptionist-dashboard-stats'],
+        ['receptionist-upcoming-appointments'],
+        ['appointments-calendar'],
+        ['dashboard-notifications'],
+      ];
+      keysToInvalidate.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
+
+      const patientName = payload?.appointment?.patient?.user?.full_name || 'Bệnh nhân';
+      const time = payload?.appointment?.start_time
+        ? dayjs(payload.appointment.start_time).format('HH:mm DD/MM/YYYY')
+        : '';
+      useNotificationStore.getState().addNewAppointmentNotification({
+        id: payload?.appointment?.id || `appt-${Date.now()}`,
+        patientName,
+        time,
+      });
+      notification.info({
+        message: 'Lịch hẹn mới',
+        description: `${patientName} vừa đặt lịch${time ? ` lúc ${time}` : ''}. Danh sách đã được cập nhật.`,
+        placement: 'topRight',
+        duration: 6,
+      });
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        new Notification('Lịch hẹn mới - C CLINIC', {
+          body: `${patientName} vừa đặt lịch${time ? ` lúc ${time}` : ''}.`,
+          icon: '/favicon.ico',
+        });
+      }
+    };
+    socket.on('new-appointment', onNewAppointment);
+    return () => socket.off('new-appointment', onNewAppointment);
+  }, [socket, user, queryClient]);
 
   useEffect(() => {
     let isMounted = true;
@@ -149,6 +209,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           icon: <MessageOutlined />,
           label: 'Tin nhắn CSKH',
           onClick: () => navigate('/admin/messages'),
+        },
+        {
+          key: 'contacts',
+          icon: <MailOutlined />,
+          label: 'Quản lý Liên hệ',
+          onClick: () => navigate('/admin/contacts'),
         },
       ];
     }
@@ -342,13 +408,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               )}
             </div>
 
-            <Badge count={5} size="small" offset={[-4, 4]}>
-              <Button
-                type="text"
-                icon={<BellOutlined className="text-xl text-white" />}
-                className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-white/10 transition-colors"
-              />
-            </Badge>
+            <Popover
+              open={notificationOpen}
+              onOpenChange={setNotificationOpen}
+              content={
+                <NotificationPopoverContent onClose={() => setNotificationOpen(false)} />
+              }
+              trigger="click"
+              placement="bottomRight"
+            >
+              <Badge count={notificationCount} size="small" offset={[-4, 4]}>
+                <Button
+                  type="text"
+                  icon={<BellOutlined className="text-xl text-white" />}
+                  className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-white/10 transition-colors"
+                />
+              </Badge>
+            </Popover>
 
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" arrow>
               <div className="flex items-center gap-3 cursor-pointer hover:bg-white/10 pl-4 pr-1 py-1.5 rounded-full transition-all border border-transparent hover:border-white/20">

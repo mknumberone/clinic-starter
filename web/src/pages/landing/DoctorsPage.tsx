@@ -120,24 +120,33 @@ export default function DoctorsPage() {
         <div className="min-h-screen font-sans bg-[#f8fbff] overflow-x-hidden w-full">
             <Navbar />
 
-            {/* 1. HERO BANNER */}
-            <section className="mt-[90px] pt-24 pb-20 bg-[#003553] text-white text-center relative overflow-hidden">
-                <div className="max-w-[1440px] mx-auto px-4 relative z-10">
+            {/* 1. HERO BANNER - dính nav, padding 20px, chiều cao dài hơn */}
+            <section
+                style={{
+                    marginBottom: '20px',
+                    marginTop: '90px',
+                    paddingTop: '20px',
+                    paddingBottom: '20px',
+                    minHeight: '280px'
+                }}
+                className="bg-[#003553] text-white relative overflow-hidden flex flex-col items-center justify-center"
+            >
+                <div className="w-full flex flex-col items-center justify-center text-center px-6 relative z-10">
                     <h1 className="text-3xl md:text-5xl font-extrabold mb-4 animate-fade-in-up">
                         Đội ngũ Chuyên gia & Bác sĩ
                     </h1>
-                    <p className="text-gray-300 text-lg max-w-2xl mx-auto mb-8">
+                    <p className="text-gray-300 text-lg max-w-2xl text-center mb-8">
                         Quy tụ đội ngũ y bác sĩ đầu ngành, giàu kinh nghiệm, tận tâm với nghề.
                         Chúng tôi cam kết mang lại chất lượng khám chữa bệnh tốt nhất.
                     </p>
 
                     {/* Search Box */}
-                    <div className="max-w-xl mx-auto relative">
+                    <div className="w-full max-w-xl">
                         <Input
                             size="large"
                             placeholder="Tìm kiếm bác sĩ, chuyên khoa..."
                             prefix={<SearchOutlined className="text-gray-400" />}
-                            className="rounded-full py-3 px-6 text-base shadow-lg border-none"
+                            className="rounded-lg py-3 px-6 text-base shadow-lg border-none"
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
@@ -148,7 +157,7 @@ export default function DoctorsPage() {
             </section>
 
             {/* 2. MAIN CONTENT */}
-            <section className="py-12 landing-container">
+            <section style={{ marginBottom: '20px' }} className="py-12 landing-container">
 
                 {/* Tabs Filter */}
                 <div className="flex justify-center mb-12">
@@ -164,60 +173,58 @@ export default function DoctorsPage() {
 
                 {/* Doctor Grid */}
                 {filteredDoctors.length > 0 ? (
-                    <Row gutter={[24, 24]}>
+                    <Row gutter={[24, 32]} justify="center">
                         {filteredDoctors.map((doc) => (
                             <Col xs={24} sm={12} lg={8} xl={6} key={doc.id}>
                                 <Card
                                     hoverable
-                                    className="h-full rounded-2xl overflow-hidden border-none shadow-md hover:shadow-xl transition-all duration-300"
+                                    className="h-full rounded-lg overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300"
                                     bodyStyle={{ padding: 0 }}
                                     cover={
-                                        <div className="relative h-64 overflow-hidden bg-gray-100 group">
+                                        <div className="relative h-56 overflow-hidden bg-gradient-to-b from-sky-50 to-sky-100 group flex items-end justify-center">
                                             <img
                                                 alt={doc.name}
                                                 src={doc.image}
                                                 className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                                             />
-                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#003553] to-transparent h-20 opacity-80"></div>
-                                            <div className="absolute bottom-3 left-4">
-                                                <Tag color="#009CAA" className="border-none font-bold shadow-sm">{doc.specialty}</Tag>
+                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#003553]/70 to-transparent h-16"></div>
+                                            <div className="absolute bottom-3 left-3">
+                                                <Tag color="#009CAA" className="border-none font-bold text-xs shadow-sm rounded">{doc.specialty}</Tag>
                                             </div>
                                         </div>
                                     }
                                 >
-                                    <div className="p-5 flex flex-col h-full">
-                                        <h3 className="text-lg font-bold text-[#003553] mb-1 line-clamp-1">{doc.name}</h3>
-                                        <p className="text-xs text-gray-500 mb-3 h-8 line-clamp-2">{doc.hospital}</p>
+                                    <div className="p-4 flex flex-col">
+                                        <h3 className="text-base font-bold text-[#003553] mb-1 line-clamp-1">{doc.name}</h3>
+                                        <p className="text-xs text-gray-500 mb-3 min-h-[32px] line-clamp-2 italic">{doc.hospital}</p>
 
-                                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+                                        <div className="flex items-center justify-center gap-4 text-sm text-gray-600 mb-3 py-2 bg-gray-50 rounded">
                                             <div className="flex items-center gap-1">
                                                 <ClockCircleOutlined className="text-[#009CAA]" />
-                                                <span>{doc.experience} KN</span>
+                                                <span className="text-xs">{doc.experience} KN</span>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <StarFilled className="text-yellow-400" />
-                                                <span>4.9 (50+)</span>
+                                                <span className="text-xs">4.9 (50+)</span>
                                             </div>
                                         </div>
 
-                                        <div className="mt-auto">
-                                            <div className="flex flex-wrap gap-2 mb-4">
-                                                {doc.tags.map(tag => (
-                                                    <span key={tag} className="bg-gray-100 text-gray-600 text-[10px] px-2 py-1 rounded">
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                            </div>
-
-                                            <Button
-                                                type="primary"
-                                                block
-                                                className="bg-[#009CAA] hover:!bg-[#0086b3] font-bold h-10 rounded-lg shadow-md border-none"
-                                                onClick={handleBooking}
-                                            >
-                                                ĐẶT LỊCH KHÁM
-                                            </Button>
+                                        <div className="flex flex-wrap justify-center gap-1.5 mb-4">
+                                            {doc.tags.map(tag => (
+                                                <span key={tag} className="bg-sky-50 text-[#009CAA] text-[10px] px-2 py-1 rounded font-medium">
+                                                    {tag}
+                                                </span>
+                                            ))}
                                         </div>
+
+                                        <Button
+                                            type="primary"
+                                            block
+                                            className="bg-[#009CAA] hover:!bg-[#0086b3] font-bold h-10 rounded-lg shadow-sm border-none"
+                                            onClick={handleBooking}
+                                        >
+                                            ĐẶT LỊCH KHÁM
+                                        </Button>
                                     </div>
                                 </Card>
                             </Col>

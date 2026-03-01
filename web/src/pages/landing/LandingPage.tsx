@@ -1,16 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Row, Col, Tag, Spin, Empty } from 'antd';
+import { Button, Card, Tag, Spin, Empty } from 'antd';
 import {
     CheckCircleFilled,
     SafetyCertificateFilled,
     HeartFilled,
     MedicineBoxFilled,
-    SmileFilled,
-    ExperimentFilled,
     MedicineBoxOutlined,
-    AudioOutlined,
-    TeamOutlined,
-    WomanOutlined,
     PhoneOutlined,
     ClockCircleOutlined,
     EnvironmentOutlined,
@@ -42,7 +37,7 @@ export default function LandingPage() {
     const navigate = useNavigate();
     const { openRegister } = useAuthModalStore();
     const { openBooking } = useBookingModalStore();
-    const { isAuthenticated, token, user } = useAuthStore();
+    const { isAuthenticated, token } = useAuthStore();
     const { connect, disconnect } = useSocketStore();
 
     // Khởi tạo socket connection cho user đã đăng nhập
@@ -149,51 +144,65 @@ export default function LandingPage() {
         },
     ];
 
+    /* Section header component - dùng chung, mọi thứ căn giữa */
+    const SectionHeader = ({ tag, title, desc }: { tag: string; title: string; desc?: string }) => (
+        <div className="landing-section-header">
+            <Tag color="cyan" className="mb-3 px-4 py-1 text-base font-semibold">
+                {tag}
+            </Tag>
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#003553] mb-4 text-center">
+                {title}
+            </h2>
+            <div className="w-16 h-1 bg-gradient-to-r from-cyan-500 to-teal-500 rounded mb-4"></div>
+            {desc && <p className="text-slate-600 text-base max-w-2xl text-center">{desc}</p>}
+        </div>
+    );
+
     return (
         <div className="min-h-screen font-sans text-slate-800 bg-white">
             <Navbar />
 
             {/* ===================== HERO SECTION ===================== */}
-            <section className="relative mt-[90px] min-h-[90vh] flex items-center bg-gradient-to-br from-[#003553] via-[#004d73] to-[#006994] overflow-hidden pt-24">
-                {/* Background Pattern */}
+            <section style={{ marginBottom: '30px' }} className="relative mt-[90px] min-h-[90vh] flex items-center bg-gradient-to-br from-[#003553] via-[#004d73] to-[#006994] overflow-hidden pt-24 pb-0">
                 <div className="absolute inset-0">
                     <div className="absolute inset-0 bg-gradient-to-br from-transparent via-cyan-900/10 to-transparent"></div>
                     <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-cyan-400/10 rounded-full blur-[120px]"></div>
                     <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-teal-400/10 rounded-full blur-[100px]"></div>
                 </div>
 
-                <div className="landing-container relative z-10">
-                    <div className="grid lg:grid-cols-2 gap-20 items-center">
-                        {/* Left Content */}
-                        <div className="text-center lg:text-left space-y-10">
-                            <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/10 backdrop-blur border border-white/20 text-white font-medium text-sm">
-                                <SafetyCertificateFilled className="text-cyan-400" />
-                                Hệ thống y tế chuẩn Nhật Bản
-                            </div>
+                <div className="landing-container relative z-10 w-full">
+                    <div className="landing-section-content">
+                        <div className="grid lg:grid-cols-2 gap-16 items-center justify-items-center w-full max-w-6xl mx-auto">
+                            {/* Left Content - centered */}
+                            <div className="text-center space-y-8 w-full flex flex-col items-center">
+                                <div className="inline-flex items-center gap-3 px-4 py-2 rounded bg-white/10 backdrop-blur border border-white/20 text-white font-medium text-sm">
+                                    <SafetyCertificateFilled className="text-cyan-400" />
+                                    Hệ thống y tế chuẩn Nhật Bản
+                                </div>
 
-                            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.2]">
-                                Chăm Sóc Sức Khỏe
-                                <span className="block text-cyan-400 mt-2">
-                                    Toàn Diện & Tận Tâm
-                                </span>
-                            </h1>
+                                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.2]">
+                                    Chăm Sóc Sức Khỏe
+                                    <span className="block text-cyan-400 mt-2">
+                                        Toàn Diện & Tận Tâm
+                                    </span>
+                                </h1>
 
-                            <p className="text-lg text-white/80 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                                Phòng khám đa khoa với đội ngũ bác sĩ giàu kinh nghiệm, trang thiết bị hiện đại và dịch vụ chăm sóc tận tâm nhất cho sức khỏe của bạn và gia đình.
-                            </p>
+                                <p className="text-lg text-white/80 max-w-xl mx-auto leading-relaxed">
+                                    Phòng khám đa khoa với đội ngũ bác sĩ giàu kinh nghiệm, trang thiết bị hiện đại và dịch vụ chăm sóc tận tâm nhất cho sức khỏe của bạn và gia đình.
+                                </p>
 
-                            <div className="flex flex-col sm:flex-row gap-5 justify-center lg:justify-start">
+                                <div className="flex flex-col sm:flex-row gap-4 justify-center">
                                 <Button
                                     size="large"
                                     onClick={handleBookingClick}
-                                    className="h-16 px-10 rounded-full text-lg font-bold bg-cyan-500 border-none text-white hover:!bg-cyan-600 shadow-xl shadow-cyan-500/30"
+                                    className="h-12 px-8 rounded-lg text-base font-bold bg-cyan-500 border-none text-white hover:!bg-cyan-600 shadow-lg shadow-cyan-500/30"
                                     icon={<CalendarOutlined />}
                                 >
                                     Đặt Lịch Khám Ngay
                                 </Button>
                                 <Button
                                     size="large"
-                                    className="h-16 px-10 rounded-full text-lg font-semibold bg-white/10 backdrop-blur border-2 border-white/30 text-white hover:bg-white/20"
+                                    className="h-12 px-8 rounded-lg text-base font-semibold bg-white/10 backdrop-blur border-2 border-white/30 text-white hover:bg-white/20"
                                     onClick={() => navigate('/contact')}
                                 >
                                     <PhoneOutlined className="mr-2" />
@@ -202,7 +211,7 @@ export default function LandingPage() {
                             </div>
 
                             {/* Quick Info */}
-                            <div className="flex flex-wrap justify-center lg:justify-start gap-8 pt-4 text-white/70 text-sm">
+                            <div className="flex flex-wrap justify-center gap-8 pt-4 text-white/70 text-sm">
                                 <div className="flex items-center gap-2">
                                     <ClockCircleOutlined className="text-cyan-400 text-lg" />
                                     <span>Mở cửa: 7:00 - 20:00</span>
@@ -215,8 +224,8 @@ export default function LandingPage() {
                         </div>
 
                         {/* Right Content - Image */}
-                        <div className="relative hidden lg:block">
-                            <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white/10">
+                        <div className="relative hidden lg:block w-full max-w-lg mx-auto">
+                            <div className="relative rounded-lg overflow-hidden shadow-2xl border-2 border-white/10">
                                 <img
                                     src="https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?w=800&q=80"
                                     alt="Medical Team"
@@ -226,9 +235,9 @@ export default function LandingPage() {
                             </div>
 
                             {/* Floating Card */}
-                            <div className="absolute -bottom-8 -left-8 bg-white rounded-2xl p-6 shadow-2xl border border-slate-100">
-                                <div className="flex items-center gap-5">
-                                    <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-2xl flex items-center justify-center">
+                            <div className="absolute -bottom-6 -left-6 bg-white rounded-lg p-5 shadow-2xl border border-slate-100">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-lg flex items-center justify-center flex-shrink-0">
                                         <CheckCircleFilled className="text-3xl text-white" />
                                     </div>
                                     <div>
@@ -238,95 +247,84 @@ export default function LandingPage() {
                                 </div>
                             </div>
                         </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
             {/* ===================== STATS SECTION ===================== */}
-            <section className="pt-40 lg:pt-48 pb-20 bg-gradient-to-r from-cyan-50 to-sky-50 -mt-8 relative z-10 rounded-t-3xl shadow-lg">
+            <section style={{ marginBottom: '30px' }} className="pt-12 pb-12 bg-gradient-to-r from-cyan-50 to-sky-50 relative z-10">
                 <div className="landing-container">
-                    <div className="mt-16 lg:mt-20 grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+                    <div className="landing-section-content">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 max-w-5xl mx-auto">
                         {stats.map((stat, idx) => (
                             <div key={idx} className="text-center">
-                                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#009CAA] to-[#006680] rounded-2xl mb-4 text-white text-2xl">
+                                <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-[#009CAA] to-[#006680] rounded-lg mb-3 text-white text-xl">
                                     {stat.icon}
                                 </div>
-                                <h3 className="text-4xl lg:text-6xl font-bold text-[#003553] mb-3">
+                                <h3 className="text-3xl lg:text-4xl font-bold text-[#003553] mb-2">
                                     {stat.num}
                                 </h3>
-                                <p className="text-slate-600 font-medium text-lg">{stat.label}</p>
+                                <p className="text-slate-600 font-medium text-sm">{stat.label}</p>
                             </div>
                         ))}
+                        </div>
                     </div>
                 </div>
             </section>
 
             {/* ===================== FEATURES SECTION ===================== */}
-            <section className="pt-28 pb-24 bg-white">
+            <section style={{ marginBottom: '30px' }} className="py-12 bg-white">
                 <div className="landing-container">
-                    <div className="text-center mb-16">
-                        <Tag color="cyan" className="mb-4 px-4 py-1 text-base font-semibold">
-                            Tại Sao Chọn Chúng Tôi
-                        </Tag>
-                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#003553] mb-6">
-                            Dịch Vụ Y Tế Chất Lượng Cao
-                        </h2>
-                        <div className="w-24 h-1.5 bg-gradient-to-r from-cyan-500 to-teal-500 mx-auto rounded-full mb-6"></div>
-                        <p className="text-slate-600 text-lg max-w-2xl mx-auto">
-                            Chúng tôi cam kết mang đến trải nghiệm khám chữa bệnh tốt nhất với đội ngũ chuyên nghiệp và công nghệ hiện đại
-                        </p>
-                    </div>
+                    <div className="landing-section-content">
+                        <SectionHeader
+                            tag="Tại Sao Chọn Chúng Tôi"
+                            title="Dịch Vụ Y Tế Chất Lượng Cao"
+                            desc="Chúng tôi cam kết mang đến trải nghiệm khám chữa bệnh tốt nhất với đội ngũ chuyên nghiệp và công nghệ hiện đại"
+                        />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 max-w-6xl mx-auto w-full">
                         {features.map((feature, idx) => (
                             <Card
                                 key={idx}
-                                className="text-center border-none shadow-lg hover:shadow-2xl transition-all duration-300 rounded-2xl hover:-translate-y-2"
+                                className="text-center border-none shadow-md hover:shadow-xl transition-all duration-300 rounded-lg hover:-translate-y-1"
                             >
-                                <div className={`w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br ${feature.color} flex items-center justify-center text-white text-3xl`}>
+                                <div className={`w-16 h-16 mx-auto mb-4 rounded-lg bg-gradient-to-br ${feature.color} flex items-center justify-center text-white text-2xl`}>
                                     {feature.icon}
                                 </div>
-                                <h3 className="text-xl font-bold text-[#003553] mb-3">
+                                <h3 className="text-lg font-bold text-[#003553] mb-2">
                                     {feature.title}
                                 </h3>
-                                <p className="text-slate-600">
+                                <p className="text-slate-600 text-sm">
                                     {feature.desc}
                                 </p>
                             </Card>
                         ))}
+                        </div>
                     </div>
                 </div>
             </section>
 
             {/* ===================== SPECIALTIES SECTION ===================== */}
-            <section id="services" className="py-24 lg:py-32 bg-gradient-to-b from-white to-slate-50">
+            <section id="services" style={{ marginBottom: '30px' }} className="py-12 bg-gradient-to-b from-white to-slate-50">
                 <div className="landing-container">
-                    {/* Section Header */}
-                    <div className="flex flex-col items-center text-center mb-16">
-                        <Tag color="cyan" className="mb-4 px-4 py-1 text-base font-semibold">
-                            Chuyên Khoa
-                        </Tag>
-                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#003553] mb-6">
-                            Đa Dạng Chuyên Khoa Khám Chữa Bệnh
-                        </h2>
-                        <div className="w-24 h-1.5 bg-gradient-to-r from-cyan-500 to-teal-500 mx-auto rounded-full mb-6"></div>
-                        <p className="text-slate-600 text-lg leading-relaxed max-w-2xl">
-                            Phòng khám cung cấp đầy đủ các chuyên khoa với đội ngũ bác sĩ giàu kinh nghiệm,
-                            trang thiết bị hiện đại đáp ứng mọi nhu cầu khám chữa bệnh
-                        </p>
-                    </div>
+                    <div className="landing-section-content">
+                        <SectionHeader
+                            tag="Chuyên Khoa"
+                            title="Đa Dạng Chuyên Khoa Khám Chữa Bệnh"
+                            desc="Phòng khám cung cấp đầy đủ các chuyên khoa với đội ngũ bác sĩ giàu kinh nghiệm, trang thiết bị hiện đại đáp ứng mọi nhu cầu khám chữa bệnh"
+                        />
 
-                    {/* Specialties Grid */}
-                    {loadingSpecialties ? (
-                        <div className="text-center py-16"><Spin size="large" /></div>
-                    ) : specialties.length === 0 ? (
-                        <div className="py-12"><Empty description="Chưa có chuyên khoa" /></div>
-                    ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 lg:gap-8">
+                        {loadingSpecialties ? (
+                            <div className="flex justify-center py-12 w-full"><Spin size="large" /></div>
+                        ) : specialties.length === 0 ? (
+                            <div className="flex justify-center py-12 w-full"><Empty description="Chưa có chuyên khoa" /></div>
+                        ) : (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 max-w-6xl mx-auto w-full">
                             {specialties.slice(0, 8).map((item: any) => (
                                 <Card
                                     key={item.id}
-                                    className="group cursor-pointer border border-slate-200 hover:border-cyan-300 shadow-sm hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden h-full"
+                                    className="group cursor-pointer border border-slate-200 hover:border-cyan-300 shadow-sm hover:shadow-lg transition-all duration-300 rounded-lg overflow-hidden h-full"
                                     styles={{ body: { padding: '2rem' } }}
                                     onClick={() => navigate(`/specialties/${item.id}`)}
                                     cover={
@@ -347,7 +345,7 @@ export default function LandingPage() {
                                 >
                                     <div className="text-center flex flex-col items-center">
                                         {item.icon && (
-                                            <div className="w-16 h-16 mx-auto rounded-xl flex items-center justify-center text-3xl mb-4 transition-transform group-hover:scale-110 bg-cyan-50 text-cyan-600">
+                                            <div className="w-14 h-14 mx-auto rounded-lg flex items-center justify-center text-2xl mb-3 transition-transform group-hover:scale-105 bg-cyan-50 text-cyan-600">
                                                 <img src={item.icon} alt={item.name} className="w-full h-full object-contain" />
                                             </div>
                                         )}
@@ -365,50 +363,59 @@ export default function LandingPage() {
                                     </div>
                                 </Card>
                             ))}
-                        </div>
-                    )}
+                            </div>
+                        )}
 
-                    {specialties.length > 8 && (
-                        <div className="text-center mt-12">
-                            <Button
-                                size="large"
-                                type="primary"
-                                className="bg-[#009CAA] hover:!bg-[#0086b3] border-none h-12 px-8 font-bold rounded-full"
-                                onClick={() => navigate('/doctors')}
-                            >
-                                Xem tất cả chuyên khoa <ArrowRightOutlined className="ml-2" />
-                            </Button>
-                        </div>
-                    )}
+                        {specialties.length > 8 && (
+                            <div className="flex justify-center mt-10">
+                                <Button
+                                    size="large"
+                                    type="primary"
+                                    className="bg-[#009CAA] hover:!bg-[#0086b3] border-none h-11 px-8 font-bold rounded-lg"
+                                    onClick={() => navigate('/doctors')}
+                                >
+                                    Xem tất cả chuyên khoa <ArrowRightOutlined className="ml-2" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </section>
 
             {/* ===================== EXAMINATION PACKAGES SECTION ===================== */}
             {featuredPackages.length > 0 && (
-                <section className="py-24 bg-white">
+                <section style={{ marginBottom: '30px' }} className="py-12 bg-white">
                     <div className="landing-container">
-                        <div className="text-center mb-16">
-                            <Tag color="gold" className="mb-4 px-4 py-1 text-base font-semibold">
+                        <div className="landing-section-content">
+                            <div className="landing-section-header">
+                            <Tag color="gold" className="mb-3 px-4 py-1 text-base font-semibold">
                                 Gói Khám Nổi Bật
                             </Tag>
-                            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#003553] mb-6">
+                            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#003553] mb-4">
                                 Các Gói Khám Sức Khỏe Phù Hợp
                             </h2>
-                            <div className="w-24 h-1.5 bg-gradient-to-r from-cyan-500 to-teal-500 mx-auto rounded-full mb-6"></div>
-                            <p className="text-slate-600 text-lg max-w-2xl mx-auto">
+                            <div className="w-16 h-1 bg-gradient-to-r from-cyan-500 to-teal-500 mx-auto rounded mb-4"></div>
+                            <p className="text-slate-600 text-base max-w-2xl mx-auto">
                                 Chọn gói khám phù hợp với nhu cầu của bạn, tiết kiệm thời gian và chi phí
                             </p>
                         </div>
 
                         {loadingPackages ? (
-                            <div className="text-center py-16"><Spin size="large" /></div>
+                            <div className="flex justify-center py-12"><Spin size="large" /></div>
                         ) : (
-                            <Row gutter={[24, 24]}>
-                                {featuredPackages.map((pkg: any) => (
-                                    <Col xs={24} sm={12} lg={8} key={pkg.id}>
-                                        <Card
-                                            hoverable
-                                            className="h-full rounded-2xl overflow-hidden border-none shadow-lg hover:shadow-2xl transition-all duration-300"
+                            <div className="max-w-6xl mx-auto w-full">
+                                <div
+                                    className="grid gap-6 w-full"
+                                    style={{
+                                        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))',
+                                        justifyItems: 'center',
+                                    }}
+                                >
+                                    {featuredPackages.map((pkg: any) => (
+                                        <div key={pkg.id} className="w-full min-w-0">
+                                            <Card
+                                                hoverable
+                                                className="h-full rounded-lg overflow-hidden border-none shadow-md hover:shadow-xl transition-all duration-300 w-full"
                                             cover={
                                                 pkg.image ? (
                                                     <img
@@ -474,44 +481,40 @@ export default function LandingPage() {
                                                 </Button>
                                             </div>
                                         </Card>
-                                    </Col>
-                                ))}
-                            </Row>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         )}
+                        </div>
                     </div>
                 </section>
             )}
 
             {/* ===================== PROCESS SECTION ===================== */}
-            <section className="py-24 bg-gradient-to-br from-slate-50 to-cyan-50">
+            <section style={{ marginBottom: '30px' }} className="py-12 bg-gradient-to-br from-slate-50 to-cyan-50">
                 <div className="landing-container">
-                    <div className="text-center mb-16">
-                        <Tag color="cyan" className="mb-4 px-4 py-1 text-base font-semibold">
-                            Quy Trình Khám
-                        </Tag>
-                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#003553] mb-6">
-                            Quy Trình Khám Chữa Bệnh Đơn Giản
-                        </h2>
-                        <div className="w-24 h-1.5 bg-gradient-to-r from-cyan-500 to-teal-500 mx-auto rounded-full mb-6"></div>
-                        <p className="text-slate-600 text-lg max-w-2xl mx-auto">
-                            Chỉ với 4 bước đơn giản, bạn đã có thể đặt lịch và khám bệnh tại phòng khám của chúng tôi
-                        </p>
-                    </div>
+                    <div className="landing-section-content">
+                        <SectionHeader
+                            tag="Quy Trình Khám"
+                            title="Quy Trình Khám Chữa Bệnh Đơn Giản"
+                            desc="Chỉ với 4 bước đơn giản, bạn đã có thể đặt lịch và khám bệnh tại phòng khám của chúng tôi"
+                        />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto w-full">
                         {processSteps.map((step, idx) => (
                             <div key={idx} className="relative">
-                                <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 text-center h-full">
-                                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-[#009CAA] to-[#006680] rounded-2xl flex items-center justify-center text-white text-3xl">
+                                <div className="bg-white rounded-lg p-6 shadow-md hover:shadow-xl transition-all duration-300 text-center h-full">
+                                    <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[#009CAA] to-[#006680] rounded-lg flex items-center justify-center text-white text-2xl">
                                         {step.icon}
                                     </div>
-                                    <div className="absolute -top-4 -right-4 w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center">
-                                        <span className="text-cyan-600 font-bold">{step.step}</span>
+                                    <div className="absolute -top-3 -right-3 w-10 h-10 bg-cyan-100 rounded flex items-center justify-center">
+                                        <span className="text-cyan-600 font-bold text-sm">{step.step}</span>
                                     </div>
-                                    <h3 className="text-xl font-bold text-[#003553] mb-3">
+                                    <h3 className="text-lg font-bold text-[#003553] mb-2">
                                         {step.title}
                                     </h3>
-                                    <p className="text-slate-600">
+                                    <p className="text-slate-600 text-sm">
                                         {step.desc}
                                     </p>
                                 </div>
@@ -522,54 +525,57 @@ export default function LandingPage() {
                                 )}
                             </div>
                         ))}
+                        </div>
                     </div>
                 </div>
             </section>
 
             {/* ===================== WHY CHOOSE US SECTION ===================== */}
-            <section className="py-24 lg:py-32 bg-white">
+            <section style={{ marginBottom: '30px' }} className="py-16 bg-white">
                 <div className="landing-container">
-                    <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 items-center">
-                        {/* Left - Image */}
-                        <div className="lg:w-1/2">
-                            <div className="rounded-3xl overflow-hidden shadow-2xl">
-                                <img
-                                    src="https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&q=80"
-                                    alt="Modern Medical Equipment"
-                                    className="w-full h-[500px] object-cover"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Right - Content */}
-                        <div className="lg:w-1/2 space-y-6">
-                            <div>
-                                <Tag color="cyan" className="mb-4 px-4 py-1 text-base font-semibold">
-                                    Tại Sao Chọn Chúng Tôi
-                                </Tag>
-                                <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#003553] mb-6">
-                                    Dịch Vụ Y Tế Chất Lượng Cao
-                                </h2>
-                                <div className="w-24 h-1.5 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-full"></div>
+                    <div className="landing-section-content">
+                        <div className="flex flex-col lg:flex-row gap-14 lg:gap-20 items-center justify-center max-w-6xl mx-auto w-full">
+                            {/* Left - Image - centered */}
+                            <div className="lg:w-1/2 w-full flex justify-center">
+                                <div className="rounded-lg overflow-hidden shadow-xl max-w-lg w-full mx-auto border border-slate-100">
+                                    <img
+                                        src="https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&q=80"
+                                        alt="Modern Medical Equipment"
+                                        className="w-full h-[520px] object-cover"
+                                    />
+                                </div>
                             </div>
 
-                            <div className="space-y-4">
-                                {[
-                                    { title: 'Đội ngũ bác sĩ giàu kinh nghiệm', desc: 'Các bác sĩ được đào tạo bài bản tại Nhật Bản và các nước tiên tiến' },
-                                    { title: 'Trang thiết bị hiện đại', desc: 'Máy móc, thiết bị y tế được nhập khẩu từ Nhật Bản và châu Âu' },
-                                    { title: 'Quy trình khám linh hoạt', desc: 'Đặt lịch online, khám nhanh chóng, không phải chờ đợi lâu' },
-                                    { title: 'Chăm sóc tận tâm', desc: 'Đội ngũ nhân viên thân thiện, chu đáo trong từng dịch vụ' },
-                                ].map((item, idx) => (
-                                    <div key={idx} className="flex gap-4 p-4 bg-gradient-to-r from-slate-50 to-cyan-50 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow items-center">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                                            <CheckCircleFilled className="text-2xl text-white" />
+                            {/* Right - Content - centered */}
+                            <div className="lg:w-1/2 w-full flex flex-col items-center text-center">
+                                <div className="w-full max-w-md mx-auto mb-8">
+                                    <Tag color="cyan" className="mb-4 px-4 py-1.5 text-base font-semibold">
+                                        Tại Sao Chọn Chúng Tôi
+                                    </Tag>
+                                    <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#003553] mb-5">
+                                        Dịch Vụ Y Tế Chất Lượng Cao
+                                    </h2>
+                                    <div className="w-20 h-1 bg-gradient-to-r from-cyan-500 to-teal-500 rounded mx-auto"></div>
+                                </div>
+
+                                <div className="space-y-5 w-full max-w-lg mx-auto">
+                                    {[
+                                        { title: 'Đội ngũ bác sĩ giàu kinh nghiệm', desc: 'Các bác sĩ được đào tạo bài bản tại Nhật Bản và các nước tiên tiến' },
+                                        { title: 'Trang thiết bị hiện đại', desc: 'Máy móc, thiết bị y tế được nhập khẩu từ Nhật Bản và châu Âu' },
+                                        { title: 'Quy trình khám linh hoạt', desc: 'Đặt lịch online, khám nhanh chóng, không phải chờ đợi lâu' },
+                                        { title: 'Chăm sóc tận tâm', desc: 'Đội ngũ nhân viên thân thiện, chu đáo trong từng dịch vụ' },
+                                    ].map((item, idx) => (
+                                        <div key={idx} className="flex flex-col sm:flex-row gap-5 p-5 bg-gradient-to-r from-slate-50 to-cyan-50/80 rounded-lg shadow-sm border border-slate-100 hover:shadow-lg hover:border-cyan-100 transition-all duration-300 items-center justify-center text-center">
+                                            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <CheckCircleFilled className="text-2xl text-white" />
+                                            </div>
+                                            <div className="flex flex-col flex-1 text-center">
+                                                <h4 className="font-bold text-[#003553] text-base mb-1">{item.title}</h4>
+                                                <p className="text-slate-600 text-sm leading-relaxed">{item.desc}</p>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col">
-                                            <h4 className="font-bold text-[#003553] text-lg mb-1">{item.title}</h4>
-                                            <p className="text-slate-600">{item.desc}</p>
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -577,38 +583,39 @@ export default function LandingPage() {
             </section>
 
             {/* ===================== CTA SECTION ===================== */}
-            <section className="py-24 lg:py-32 bg-gradient-to-r from-[#003553] to-[#004d73] relative overflow-hidden">
-                {/* Background Elements */}
+            <section style={{ marginBottom: 0, paddingTop: '20px', paddingBottom: '20px' }} className="bg-gradient-to-r from-[#003553] to-[#004d73] relative overflow-hidden min-h-[280px] flex items-center">
                 <div className="absolute inset-0">
                     <div className="absolute top-0 left-0 w-96 h-96 bg-cyan-400/10 rounded-full blur-[120px]"></div>
                     <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-teal-400/10 rounded-full blur-[150px]"></div>
                 </div>
 
                 <div className="landing-container relative z-10">
-                    <div className="flex flex-col items-center text-center">
-                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-8">
+                    <div className="landing-section-content">
+                        <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto w-full space-y-8">
+                        <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white">
                             Sẵn Sàng Chăm Sóc Sức Khỏe Của Bạn?
                         </h2>
-                        <p className="text-white/80 text-xl mb-12 max-w-2xl mx-auto leading-relaxed">
+                        <p className="text-white/80 text-base lg:text-lg leading-relaxed max-w-2xl">
                             Đặt lịch hẹn ngay hôm nay để được thăm khám và tư vấn bởi đội ngũ bác sĩ chuyên nghiệp của chúng tôi.
                         </p>
-                        <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                        <div className="flex flex-col sm:flex-row gap-5 justify-center pt-2">
                             <Button
                                 size="large"
                                 onClick={handleBookingClick}
-                                className="h-16 px-12 rounded-full text-lg font-bold bg-cyan-500 text-white border-none hover:!bg-cyan-600 shadow-xl shadow-cyan-500/30"
+                                className="h-12 px-10 rounded-lg text-base font-bold bg-cyan-500 text-white border-none hover:!bg-cyan-600 shadow-lg shadow-cyan-500/30"
                                 icon={<CalendarOutlined />}
                             >
                                 Đặt Lịch Khám Ngay
                             </Button>
                             <Button
                                 size="large"
-                                className="h-16 px-12 rounded-full text-lg font-semibold bg-transparent border-2 border-white/50 text-white hover:bg-white/10"
+                                className="h-12 px-10 rounded-lg text-base font-semibold bg-transparent border-2 border-white/50 text-white hover:bg-white/10 hover:border-white/70"
                                 onClick={() => navigate('/contact')}
                             >
                                 <PhoneOutlined className="mr-2" />
                                 Liên Hệ Tư Vấn
                             </Button>
+                        </div>
                         </div>
                     </div>
                 </div>

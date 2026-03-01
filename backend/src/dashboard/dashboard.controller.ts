@@ -75,4 +75,15 @@ export class DashboardController {
     }
     return this.dashboardService.getDoctorDashboard(req.user.doctor_id);
   }
+
+  @Get('notifications')
+  @ApiOperation({ summary: 'Tổng hợp thông báo (liên hệ mới, tin nhắn chưa đọc, thuốc sắp hết hạn/hết)' })
+  @ApiResponse({ status: 200, description: 'Danh sách thông báo' })
+  async getNotifications(@Request() req) {
+    return this.dashboardService.getNotifications(
+      req.user.id,
+      req.user.role,
+      req.user.branch_id,
+    );
+  }
 }

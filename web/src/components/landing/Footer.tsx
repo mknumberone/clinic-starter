@@ -3,7 +3,7 @@ import { Button } from 'antd';
 
 export default function Footer() {
     return (
-        <footer className="bg-[#001e2e] text-gray-300 pt-20 pb-10 border-t border-white/5">
+        <footer className="bg-[#001e2e] text-gray-300 pb-20 border-t border-white/5" style={{ paddingTop: '10px' }}>
             {/* CONTAINER ĐỒNG BỘ */}
             <div className="landing-container">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
@@ -67,11 +67,12 @@ export default function Footer() {
                     </div>
                 </div>
 
-                <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
-                    <p>© 2025 Clinic Medical Center Vietnam. All rights reserved.</p>
-                    <div className="flex gap-6 mt-4 md:mt-0">
-                        <a href="#" className="hover:text-white">Chính sách bảo mật</a>
-                        <a href="#" className="hover:text-white">Điều khoản sử dụng</a>
+                <div
+                    className="border-t border-white/10 w-full text-center"
+                    style={{ paddingTop: '10px', paddingBottom: '10px' }}
+                >
+                    <div className="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-8 text-xs text-gray-500">
+                        <p className="mb-0 text-center">© 2025 Clinic Medical Center Vietnam. All rights reserved.</p>
                     </div>
                 </div>
             </div>

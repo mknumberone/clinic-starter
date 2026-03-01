@@ -14,6 +14,7 @@ export default function DoctorDashboard() {
   const { data: dashboard } = useQuery({
     queryKey: ['doctorDashboard'],
     queryFn: () => dashboardService.getDoctorDashboard(),
+    refetchInterval: 30000, // Fallback: tự refetch mỗi 30s
   });
 
   return (
@@ -62,11 +63,10 @@ export default function DoctorDashboard() {
                   <List.Item>
                     <List.Item.Meta
                       avatar={<ClockCircleOutlined style={{ fontSize: 24, color: '#1890ff' }} />}
-                      title={`${shift.startTime} - ${shift.endTime}`}
+                      title={`${shift.start_time ? dayjs(shift.start_time).format('HH:mm') : '--'} - ${shift.end_time ? dayjs(shift.end_time).format('HH:mm') : '--'}`}
                       description={
                         <Space>
-                          <span>Phòng: {shift.room.roomNumber}</span>
-                          <Tag color="blue">{shift.dayOfWeek}</Tag>
+                          <span>Phòng: {shift.room?.code || shift.room?.name || '---'}</span>
                         </Space>
                       }
                     />
@@ -86,7 +86,7 @@ export default function DoctorDashboard() {
                 renderItem={(appointment: any) => (
                   <List.Item
                     actions={[
-                      <Tag color={
+                      <Tag key="status" color={
                         appointment.status === 'COMPLETED' ? 'green' :
                         appointment.status === 'IN_PROGRESS' ? 'orange' :
                         appointment.status === 'CANCELLED' ? 'red' : 'blue'
@@ -97,12 +97,12 @@ export default function DoctorDashboard() {
                   >
                     <List.Item.Meta
                       avatar={<Avatar icon={<UserOutlined />} />}
-                      title={appointment.patient.user.name}
+                      title={appointment.patient?.user?.full_name || 'N/A'}
                       description={
                         <Space direction="vertical">
-                          <span>⏰ {appointment.startTime} - {appointment.endTime}</span>
-                          <span>📍 Phòng {appointment.room.roomNumber}</span>
-                          {appointment.reason && <span>📝 {appointment.reason}</span>}
+                          <span>⏰ {appointment.start_time ? dayjs(appointment.start_time).format('HH:mm') : ''} - {appointment.end_time ? dayjs(appointment.end_time).format('HH:mm') : ''}</span>
+                          <span>📍 Phòng {appointment.room?.code || appointment.room?.name || '---'}</span>
+                          {appointment.notes && <span>📝 {appointment.notes}</span>}
                         </Space>
                       }
                     />

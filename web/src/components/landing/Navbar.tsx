@@ -44,7 +44,7 @@ export default function Navbar() {
     const aboutMenu: MenuProps['items'] = [
         {
             key: 'about-dym',
-            label: 'DYM Medical Center Vietnam',
+            label: 'NHN Medical Center ',
             onClick: () => navigate('/about'), // Bạn có thể thay bằng navigate('/about') sau này
         },
         {
@@ -144,10 +144,10 @@ export default function Navbar() {
                     {/* --- LOGO --- */}
                     <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
                         <div className="w-12 h-12 bg-white text-[#003553] rounded-xl flex items-center justify-center font-extrabold text-2xl shadow-md group-hover:scale-105 transition-transform">
-                            C
+                            N
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-2xl font-bold tracking-wide leading-none text-white uppercase font-sans">CLINIC</span>
+                            <span className="text-2xl font-bold tracking-wide leading-none text-white uppercase font-sans">NHN</span>
                             <span className="text-[11px] text-[#009CAA] tracking-[0.2em] uppercase font-semibold mt-1">Medical Center</span>
                         </div>
                     </div>

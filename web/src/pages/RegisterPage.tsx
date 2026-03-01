@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Form, Input, Button, message, Steps, Card } from 'antd';
+import { Form, Input, Button, message, Steps, Card, Checkbox } from 'antd';
 import { PhoneOutlined, SafetyOutlined, UserOutlined, MailOutlined } from '@ant-design/icons';
-import { authService } from '../services/auth.service';
-import { useAuthStore } from '../stores/authStore';
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { authService } from '@/services/auth.service';
+import { useAuthStore } from '@/stores/authStore';
+import { auth, toE164 } from '@/lib/firebase';
 
 const { Step } = Steps;
 
@@ -11,18 +13,37 @@ export default function RegisterPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [useSamplePhoneMode, setUseSamplePhoneMode] = useState(true);
   const navigate = useNavigate();
   const { login } = useAuthStore();
+  const confirmationResultRef = useRef<{ confirm: (code: string) => Promise<any> } | null>(null);
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
   const handleSendOtp = async (values: { phone: string }) => {
     try {
       setLoading(true);
-      await authService.sendOtp({ phone: values.phone });
+      if (useSamplePhoneMode) {
+        await authService.sendOtp({ phone: values.phone });
+        setPhone(values.phone);
+        setCurrentStep(1);
+        message.success('Mã OTP mẫu: 123456');
+        return;
+      }
+      const phoneE164 = toE164(values.phone);
+      if (!recaptchaContainerRef.current) throw new Error('Recaptcha container chưa sẵn sàng');
+      recaptchaContainerRef.current.innerHTML = '';
+      const recaptchaVerifier = new RecaptchaVerifier(
+        recaptchaContainerRef.current,
+        { size: 'invisible' },
+        auth
+      );
+      const confirmationResult = await signInWithPhoneNumber(auth, phoneE164, recaptchaVerifier);
+      confirmationResultRef.current = confirmationResult;
       setPhone(values.phone);
       setCurrentStep(1);
-      message.success('Mã OTP đã được gửi (Mặc định: 123456)');
+      message.success('Mã OTP đã được gửi đến số điện thoại của bạn');
     } catch (error: any) {
-      message.error(error.response?.data?.message || 'Gửi OTP thất bại');
+      message.error(error?.message || error?.response?.data?.message || 'Gửi OTP thất bại');
     } finally {
       setLoading(false);
     }
@@ -31,17 +52,36 @@ export default function RegisterPage() {
   const handleRegister = async (values: any) => {
     try {
       setLoading(true);
-      const response = await authService.register({
-        phone,
-        otp: values.otp,
+      if (useSamplePhoneMode) {
+        const response = await authService.register({
+          phone,
+          otp: values.otp,
+          full_name: values.full_name,
+          email: values.email,
+        });
+        const token = response.access_token || response.token;
+        if (!token) throw new Error('Không nhận được token');
+        login(token, response.user);
+        message.success('Đăng ký thành công!');
+        navigate('/patient/dashboard');
+        return;
+      }
+      const confirmation = confirmationResultRef.current;
+      if (!confirmation) throw new Error('Vui lòng gửi lại OTP');
+      const result = await confirmation.confirm(values.otp);
+      const idToken = await result.user.getIdToken();
+      const response = await authService.registerPhoneFirebase({
+        idToken,
         full_name: values.full_name,
         email: values.email,
       });
-      login(response.token, response.user);
+      const token = response.access_token || response.token;
+      if (!token) throw new Error('Không nhận được token');
+      login(token, response.user);
       message.success('Đăng ký thành công!');
       navigate('/patient/dashboard');
     } catch (error: any) {
-      message.error(error.response?.data?.message || 'Đăng ký thất bại');
+      message.error(error?.response?.data?.message || error?.message || 'Đăng ký thất bại');
     } finally {
       setLoading(false);
     }
@@ -58,6 +98,7 @@ export default function RegisterPage() {
           </div>
         }
       >
+        <div ref={recaptchaContainerRef} style={{ position: 'absolute', left: -9999, width: 1, height: 1, overflow: 'hidden' }} aria-hidden="true" />
         <Steps current={currentStep} style={{ marginBottom: 24 }}>
           <Step title="Số điện thoại" icon={<PhoneOutlined />} />
           <Step title="Thông tin" icon={<UserOutlined />} />
@@ -80,6 +121,11 @@ export default function RegisterPage() {
               />
             </Form.Item>
             <Form.Item>
+              <Checkbox checked={useSamplePhoneMode} onChange={(e) => setUseSamplePhoneMode(e.target.checked)}>
+                Dùng số mẫu (OTP: 123456)
+              </Checkbox>
+            </Form.Item>
+            <Form.Item>
               <Button type="primary" htmlType="submit" block size="large" loading={loading}>
                 Tiếp tục
               </Button>
@@ -93,7 +139,7 @@ export default function RegisterPage() {
               name="otp"
               label="Mã OTP"
               rules={[{ required: true, message: 'Vui lòng nhập mã OTP!' }]}
-              extra="Mã OTP mặc định: 123456"
+              extra={useSamplePhoneMode ? 'Mã OTP mẫu: 123456' : 'Nhập mã OTP nhận được qua tin nhắn SMS'}
             >
               <Input prefix={<SafetyOutlined />} placeholder="123456" maxLength={6} />
             </Form.Item>

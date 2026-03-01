@@ -15,8 +15,9 @@ export class ChatController {
     @Post('start-support')
     async startSupportConversation(@Request() req) {
         const userId = req.user.id;
-        // Logic chat support: userId vs supportId (hoặc chính mình để test)
-        const supportId = userId;
+        // Lấy user hỗ trợ (Admin/Receptionist) - không dùng chính userId vì ConversationParticipant
+        // có khóa (conversation_id, user_id), không thể tạo hội thoại user với chính mình
+        const supportId = await this.chatService.getSupportUserId(userId);
         return this.chatService.getOrCreateConversation(userId, supportId);
     }
 
@@ -52,6 +53,7 @@ export class ChatController {
     }))
     async uploadFile(@UploadedFile() file: Express.Multer.File) {
         return {
+            filename: file.filename,
             url: `/uploads/chat/${file.filename}`,
             name: file.originalname,
             type: file.mimetype.startsWith('image/') ? 'IMAGE' : 'FILE'

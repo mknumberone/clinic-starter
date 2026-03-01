@@ -34,3 +34,54 @@ body {
     padding-right: 24px;
   }
 }
+
+/* Section header - centered, all content centered */
+.landing-section-header {
+  text-align: center;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Section content - centered on screen */
+.landing-section-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+/* News page - ô tìm kiếm đẹp hơn */
+.news-search-input.ant-input-affix-wrapper:focus-within,
+.news-search-input.ant-input-affix-wrapper:hover {
+  border-color: rgba(0, 156, 170, 0.5);
+  box-shadow: 0 0 0 2px rgba(0, 156, 170, 0.1);
+}
+
+/* Contact form - spacing và alignment */
+.contact-form .ant-form-item {
+  margin-bottom: 20px;
+}
+.contact-form .ant-form-item-label {
+  padding-bottom: 6px;
+}
+.contact-form .ant-form-item-label > label {
+  height: auto;
+}
+
+/* Contact info card - ép nền tối và chữ trắng hiển thị */
+.contact-info-card.ant-card,
+.contact-info-card.ant-card .ant-card-body {
+  background: linear-gradient(135deg, #003553 0%, #006680 100%) !important;
+  color: #ffffff !important;
+}
+.contact-info-card .contact-info-text {
+  color: #ffffff !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}

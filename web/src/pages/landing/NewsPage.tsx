@@ -82,32 +82,38 @@ export default function NewsPage() {
             );
         }
         return (
-            <div className="min-h-screen font-sans bg-[#f8fbff]">
+            <div className="min-h-screen font-sans bg-[#f8fbff] flex flex-col">
                 <Navbar />
 
-                {/* Spacer bù chiều cao navbar */}
-                <div className="h-[90px]" />
-
-                {/* Hero Section */}
-                <section className="pt-32 pb-16 bg-gradient-to-br from-[#003553] via-[#004d6b] to-[#006680] text-white">
-                    <div className="landing-container max-w-[1200px] mx-auto px-0 md:px-0 lg:px-0">
+                {/* Hero Section - dính nav */}
+                <section
+                    style={{
+                        marginBottom: '20px',
+                        marginTop: '90px',
+                        paddingTop: '20px',
+                        paddingBottom: '20px',
+                        minHeight: '240px'
+                    }}
+                    className="bg-gradient-to-br from-[#003553] via-[#004d6b] to-[#006680] text-white flex flex-col items-center justify-center"
+                >
+                    <div className="w-full max-w-[1200px] px-6">
                         <Button
                             icon={<ArrowLeftOutlined />}
                             onClick={() => navigate('/news')}
-                            className="mb-6 text-white border-white hover:bg-white/20"
+                            className="mb-6 text-white border-white hover:bg-white/20 rounded-lg"
                         >
                             Quay lại danh sách
                         </Button>
 
-                        <Tag color="#009CAA" className="mb-4 text-sm px-3 py-1">
+                        <Tag color="#009CAA" className="mb-4 text-sm px-3 py-1 rounded">
                             {selectedArticle.category}
                         </Tag>
 
-                        <Title level={1} className="!text-white !mb-4 !text-3xl md:!text-5xl">
+                        <Title level={1} className="!text-white !mb-4 !text-3xl md:!text-5xl text-center">
                             {selectedArticle.title}
                         </Title>
 
-                        <div className="flex flex-wrap items-center gap-6 text-gray-200">
+                        <div className="flex flex-wrap items-center justify-center gap-6 text-gray-200">
                             {selectedArticle.author && (
                                 <div className="flex items-center gap-2">
                                     <UserOutlined />
@@ -129,8 +135,8 @@ export default function NewsPage() {
                 </section>
 
                 {/* Content */}
-                <section className="py-20 bg-white">
-                    <div className="landing-container max-w-[900px] mx-auto px-0 md:px-0 lg:px-0">
+                <section style={{ marginBottom: '0' }} className="py-20 bg-white flex-grow">
+                    <div className="landing-container max-w-[900px] mx-auto">
                         {selectedArticle.image && (
                             <img
                                 src={selectedArticle.image}
@@ -202,32 +208,44 @@ export default function NewsPage() {
 
     // Hiển thị danh sách bài viết
     return (
-        <div className="min-h-screen font-sans bg-[#f8fbff]">
+        <div className="min-h-screen font-sans bg-[#f8fbff] flex flex-col">
             <Navbar />
 
-            {/* Hero Section */}
-            <section className="mt-[90px] pt-32 pb-16 bg-gradient-to-br from-[#003553] via-[#004d6b] to-[#006680] text-white">
-                <div className="landing-container max-w-[1200px] mx-auto px-0 md:px-0 lg:px-0 text-center">
-                    <FileTextOutlined className="text-6xl mb-6 text-cyan-300" />
-                    <Title level={1} className="!text-white !mb-4 !text-4xl md:!text-6xl">
+            {/* Hero Section - dính nav, padding 20px */}
+            <section
+                style={{
+                    marginBottom: '20px',
+                    marginTop: '90px',
+                    paddingTop: '20px',
+                    paddingBottom: '20px',
+                    minHeight: '260px'
+                }}
+                className="bg-gradient-to-br from-[#003553] via-[#004d6b] to-[#006680] text-white flex flex-col items-center justify-center"
+            >
+                <div className="w-full flex flex-col items-center justify-center text-center px-6">
+                    <FileTextOutlined className="text-5xl mb-4" style={{ color: '#ffffff' }} />
+                    <h1 className="text-white font-extrabold mb-4 text-4xl md:text-5xl" style={{ color: '#ffffff', margin: '0 0 1rem 0' }}>
                         Tin tức & Sức khỏe
-                    </Title>
-                    <Paragraph className="text-gray-200 text-lg max-w-2xl mx-auto">
-                        Cập nhật những thông tin mới nhất về sức khỏe, dinh dưỡng và phòng bệnh
-                    </Paragraph>
+                    </h1>
+                    <p className="text-white text-xl max-w-2xl text-center leading-relaxed font-normal tracking-wide" style={{ color: '#ffffff', fontSize: '1.25rem' }}>
+                        Cập nhật thông tin mới nhất về sức khỏe, dinh dưỡng và phòng bệnh
+                    </p>
                 </div>
             </section>
 
-            {/* News List */}
-            <section className="py-20">
-                <div className="landing-container max-w-[1200px] mx-auto px-0 md:px-0 lg:px-0">
-                    {/* Search Bar */}
-                    <div className="mb-8 max-w-md mx-auto">
+            {/* News List - cách bottom 20px, search cách cards rộng ra, padding 10px */}
+            <section style={{ marginBottom: '20px' }} className="py-20 flex-grow">
+                <div className="landing-container max-w-[1200px] mx-auto">
+                    {/* Ô tìm kiếm - padding trên dưới 10px, cách ô tin tức ra */}
+                    <div
+                        className="max-w-lg mx-auto mb-8"
+                        style={{ paddingTop: '10px', paddingBottom: '10px' }}
+                    >
                         <Input
                             size="large"
                             placeholder="Tìm kiếm bài viết..."
-                            prefix={<SearchOutlined className="text-gray-400" />}
-                            className="rounded-full py-3 px-6 text-base shadow-md border-gray-200"
+                            prefix={<SearchOutlined className="text-[#009CAA]" />}
+                            className="news-search-input rounded-lg py-3 px-5 text-base bg-white border border-slate-200 shadow-md hover:border-[#009CAA]/50 hover:shadow-lg focus:border-[#009CAA] transition-all duration-200 placeholder:text-slate-400"
                             value={searchTerm}
                             onChange={(e) => {
                                 setSearchTerm(e.target.value);
@@ -244,56 +262,51 @@ export default function NewsPage() {
                         <Empty description="Không tìm thấy bài viết nào" />
                     ) : (
                         <>
-                            <Row gutter={[24, 24]}>
+                            <Row gutter={[32, 40]} justify="center">
                                 {newsData.data.map((article) => (
                                     <Col xs={24} sm={12} lg={8} key={article.id}>
                                         <Card
                                             hoverable
-                                            className="h-full rounded-2xl overflow-hidden border-none shadow-lg hover:shadow-2xl transition-all duration-300 bg-white"
+                                            className="h-full rounded-lg overflow-hidden border border-slate-100 bg-white shadow-sm news-card hover:border-[#009CAA]/30 hover:shadow-lg transition-all duration-200"
+                                            bodyStyle={{ padding: 0 }}
                                             cover={
                                                 article.image ? (
                                                     <img
                                                         alt={article.title}
                                                         src={article.image}
-                                                        className="h-48 object-cover"
+                                                        className="h-48 w-full object-cover"
                                                     />
                                                 ) : (
                                                     <div className="h-48 bg-gradient-to-br from-[#009CAA] to-[#006680] flex items-center justify-center">
-                                                        <FileTextOutlined className="text-6xl text-white/50" />
+                                                        <FileTextOutlined className="text-5xl text-white/60" />
                                                     </div>
                                                 )
                                             }
                                             onClick={() => navigate(`/news/${article.slug}`)}
                                         >
-                                            <div className="p-4">
+                                            <div style={{ padding: '10px' }}>
                                                 {article.category && (
-                                                    <Tag color="#009CAA" className="mb-3">
+                                                    <Tag color="#009CAA" className="mb-2 rounded font-medium text-xs border-0">
                                                         {article.category}
                                                     </Tag>
                                                 )}
-                                                <Title
-                                                    level={4}
-                                                    className="!mb-3 !text-[#003553] line-clamp-2 min-h-[3.5rem]"
-                                                >
+                                                <h3 className="text-[#003553] font-semibold text-base leading-snug line-clamp-2 min-h-[2.75rem] mb-2 tracking-tight">
                                                     {article.title}
-                                                </Title>
+                                                </h3>
                                                 {article.excerpt && (
-                                                    <Paragraph
-                                                        className="text-gray-600 mb-4 line-clamp-3"
-                                                        ellipsis={{ rows: 3 }}
-                                                    >
+                                                    <p className="text-slate-600 text-sm leading-relaxed line-clamp-3 mb-3 font-normal">
                                                         {article.excerpt}
-                                                    </Paragraph>
+                                                    </p>
                                                 )}
-                                                <Divider className="my-3" />
-                                                <div className="flex items-center justify-between text-sm text-gray-500">
+                                                <Divider className="my-2 !border-slate-100" />
+                                                <div className="flex items-center justify-between text-xs text-slate-500 font-normal">
                                                     {article.author && (
-                                                        <div className="flex items-center gap-2">
-                                                            <UserOutlined />
-                                                            <span>{article.author}</span>
+                                                        <div className="flex items-center gap-1 truncate max-w-[120px]">
+                                                            <UserOutlined className="text-slate-400 flex-shrink-0" />
+                                                            <span className="truncate">{article.author}</span>
                                                         </div>
                                                     )}
-                                                    <div className="flex items-center gap-4">
+                                                    <div className="flex items-center gap-3 flex-shrink-0">
                                                         {article.published_at && (
                                                             <div className="flex items-center gap-1">
                                                                 <CalendarOutlined />
@@ -302,7 +315,7 @@ export default function NewsPage() {
                                                         )}
                                                         <div className="flex items-center gap-1">
                                                             <EyeOutlined />
-                                                            <span>{article.views}</span>
+                                                            <span>{article.views} lượt xem</span>
                                                         </div>
                                                     </div>
                                                 </div>

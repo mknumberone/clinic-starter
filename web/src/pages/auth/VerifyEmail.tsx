@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Result, Button, Spin, message } from 'antd';
 import { authService } from '@/services/auth.service';
@@ -8,8 +8,13 @@ export default function VerifyEmail() {
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const navigate = useNavigate();
     const token = searchParams.get('token');
+    const hasCalledRef = useRef(false);
 
     useEffect(() => {
+        // Tránh gọi verifyEmail 2 lần trong React StrictMode (dev) gây trạng thái vừa thành công vừa thất bại
+        if (hasCalledRef.current) return;
+        hasCalledRef.current = true;
+
         if (token) {
             authService.verifyEmail(token)
                 .then((response) => {

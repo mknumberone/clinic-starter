@@ -64,6 +64,7 @@ export default function AppointmentList() {
         startDate: dateRange?.[0]?.format('YYYY-MM-DD'),
         endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
       }),
+    refetchInterval: 30000, // Fallback: tự refetch mỗi 30s nếu socket lỗi
   });
 
   // --- MUTATION: Đổi trạng thái ---

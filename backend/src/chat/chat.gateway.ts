@@ -87,4 +87,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             client.emit('error', { message: 'Không thể gửi tin nhắn' });
         }
     }
+
+    /**
+     * Gửi thông báo lịch hẹn mới tới tất cả client (lễ tân, bác sĩ, quản lý) để cập nhật realtime.
+     */
+    broadcastNewAppointment(payload: { branchId?: string; appointment: any }) {
+        this.server.emit('new-appointment', payload);
+    }
 }

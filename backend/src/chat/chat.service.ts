@@ -1,6 +1,6 @@
 // File: src/chat/chat.service.ts
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -121,6 +121,25 @@ export class ChatService {
             data: { is_read: true }
         });
         return { success: true };
+    }
+
+    async getSupportUserId(excludeUserId?: string): Promise<string> {
+        const support = await this.prisma.user.findFirst({
+            where: {
+                role: { in: ['ADMIN', 'RECEPTIONIST'] },
+                ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+            },
+            orderBy: { created_at: 'asc' },
+        });
+        if (!support) {
+            const fallback = await this.prisma.user.findFirst({
+                where: { id: { not: excludeUserId || '' } },
+                orderBy: { created_at: 'asc' },
+            });
+            if (!fallback) throw new BadRequestException('Không tìm thấy nhân viên hỗ trợ. Vui lòng thêm tài khoản Admin hoặc Lễ tân.');
+            return fallback.id;
+        }
+        return support.id;
     }
 
     async getOrCreateConversation(userA: string, userB: string) {

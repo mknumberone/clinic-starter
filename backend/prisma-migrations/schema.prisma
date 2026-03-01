@@ -22,6 +22,30 @@ model Branch {
   inventory_transactions InventoryTransaction[]
   rooms                  Room[]
   users                  User[]
+  contacts               Contact[]
+}
+
+model Contact {
+  id          String        @id @default(uuid())
+  name        String
+  email       String
+  phone       String
+  subject     String
+  message     String        @db.Text
+  status      ContactStatus @default(NEW)
+  admin_reply String?       @db.Text
+  branch_id   String?
+  patient_id  String?
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+  branch      Branch?       @relation(fields: [branch_id], references: [id])
+  patient     Patient?      @relation(fields: [patient_id], references: [id])
+}
+
+enum ContactStatus {
+  NEW
+  READ
+  REPLIED
 }
 
 model User {
@@ -63,6 +87,7 @@ model Patient {
   medical_records   MedicalRecord[]
   user              User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
   prescriptions     Prescription[]
+  contacts          Contact[]
 }
 
 model Doctor {

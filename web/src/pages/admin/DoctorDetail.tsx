@@ -31,6 +31,7 @@ import {
   SyncOutlined,
 } from '@ant-design/icons';
 import { doctorService } from '@/services/doctor.service';
+import { appointmentService, type Appointment } from '@/services/appointment.service';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import EditDoctorModal from './components/EditDoctorModal';
 import dayjs from 'dayjs';
@@ -52,10 +53,32 @@ export default function DoctorDetail() {
     },
   });
 
-  // Logic lấy shift không đổi, nhưng lưu ý ở backend đã xóa controller shifts trong doctor
-  // Nếu API getDoctorById trả về luôn shifts thì dùng luôn doctor.shifts
-  // Ở đây giả sử vẫn gọi API riêng hoặc dùng data include
   const shifts = doctor?.shifts || [];
+
+  const appointmentStatusConfig: Record<string, { color: string; text: string }> = {
+    SCHEDULED: { color: 'blue', text: 'Đã đặt' },
+    CONFIRMED: { color: 'cyan', text: 'Đã xác nhận' },
+    IN_PROGRESS: { color: 'geekblue', text: 'Đang khám' },
+    COMPLETED: { color: 'green', text: 'Hoàn thành' },
+    CANCELLED: { color: 'red', text: 'Đã hủy' },
+    NO_SHOW: { color: 'orange', text: 'Vắng mặt' },
+  };
+
+  const {
+    data: doctorAppointments,
+    isLoading: isAppointmentsLoading,
+  } = useQuery({
+    queryKey: ['doctor-appointments', id],
+    enabled: !!id,
+    queryFn: () =>
+      appointmentService.getAppointments({
+        doctorId: id!,
+        page: 1,
+        limit: 20,
+      }),
+  });
+
+  const appointments: Appointment[] = doctorAppointments?.data || [];
 
   if (isLoading) {
     return (
@@ -108,6 +131,63 @@ export default function DoctorDetail() {
           {record.room?.name}
         </Space>
       ),
+    },
+  ];
+
+  const appointmentColumns = [
+    {
+      title: 'Bệnh nhân',
+      key: 'patient',
+      render: (_: unknown, record: Appointment) => (
+        <div>
+          <Typography.Text strong>
+            {record.patient?.user.full_name || 'Khách vãng lai'}
+          </Typography.Text>
+          <br />
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {record.patient?.user.phone}
+          </Typography.Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Thời gian',
+      key: 'time',
+      render: (_: unknown, record: Appointment) => (
+        <div>
+          <div className="font-medium text-indigo-700">
+            {dayjs(record.start_time).format('DD/MM/YYYY')}
+          </div>
+          <Typography.Text type="secondary">
+            {dayjs(record.start_time).format('HH:mm')} -{' '}
+            {dayjs(record.end_time).format('HH:mm')}
+          </Typography.Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Phòng',
+      key: 'room',
+      render: (_: unknown, record: Appointment) =>
+        record.room ? (
+          <Tag>
+            {record.room.code} - {record.room.name}
+          </Tag>
+        ) : (
+          <span className="text-gray-400 italic">--</span>
+        ),
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => {
+        const config = appointmentStatusConfig[status] || {
+          color: 'default',
+          text: status,
+        };
+        return <Tag color={config.color}>{config.text}</Tag>;
+      },
     },
   ];
 
@@ -240,7 +320,16 @@ export default function DoctorDetail() {
                 label: (
                   <span><CalendarOutlined /> Lịch hẹn</span>
                 ),
-                children: <div className="p-4 text-gray-500 text-center">Chức năng đang phát triển</div>,
+                children: (
+                  <Table
+                    columns={appointmentColumns}
+                    dataSource={appointments}
+                    rowKey="id"
+                    loading={isAppointmentsLoading}
+                    pagination={false}
+                    locale={{ emptyText: 'Chưa có lịch hẹn' }}
+                  />
+                ),
               },
             ]}
           />

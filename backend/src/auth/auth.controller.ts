@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Get, UseGuards, Request, ValidationPipe, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { SendOtpDto, RegisterDto, LoginDto, RegisterEmailDto, LoginEmailDto, ResendVerificationDto } from './dto/auth.dto';
+import { SendOtpDto, RegisterDto, LoginDto, RegisterEmailDto, LoginEmailDto, ResendVerificationDto, FirebasePhoneRegisterDto, FirebasePhoneLoginDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
@@ -30,12 +30,31 @@ export class AuthController {
   }
 
   @Post('login')
-  @ApiOperation({ summary: 'Đăng nhập bằng SĐT + OTP' })
+  @ApiOperation({ summary: 'Đăng nhập bằng SĐT + OTP (eSMS)' })
   @ApiResponse({ status: 200, description: 'Đăng nhập thành công' })
   @ApiResponse({ status: 401, description: 'OTP không hợp lệ hoặc số điện thoại chưa đăng ký' })
   @ApiBody({ type: LoginDto })
   async login(@Body(ValidationPipe) dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('phone/register')
+  @ApiOperation({ summary: 'Đăng ký bằng SĐT + Firebase OTP' })
+  @ApiResponse({ status: 201, description: 'Đăng ký thành công' })
+  @ApiResponse({ status: 400, description: 'ID token không hợp lệ' })
+  @ApiResponse({ status: 409, description: 'Số điện thoại đã được đăng ký' })
+  @ApiBody({ type: FirebasePhoneRegisterDto })
+  async registerWithFirebasePhone(@Body(ValidationPipe) dto: FirebasePhoneRegisterDto) {
+    return this.authService.registerWithFirebasePhone(dto);
+  }
+
+  @Post('phone/login')
+  @ApiOperation({ summary: 'Đăng nhập bằng SĐT + Firebase OTP' })
+  @ApiResponse({ status: 200, description: 'Đăng nhập thành công' })
+  @ApiResponse({ status: 401, description: 'Số điện thoại chưa đăng ký' })
+  @ApiBody({ type: FirebasePhoneLoginDto })
+  async loginWithFirebasePhone(@Body(ValidationPipe) dto: FirebasePhoneLoginDto) {
+    return this.authService.loginWithFirebasePhone(dto);
   }
 
   @Post('register-email')

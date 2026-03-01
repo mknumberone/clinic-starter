@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AppointmentsController } from './appointments.controller';
 import { AppointmentsService } from './appointments.service';
-import { PrismaModule } from '../prisma/prisma.module'; // <--- THÊM DÒNG NÀY
+import { PrismaModule } from '../prisma/prisma.module';
+import { ChatModule } from '../chat/chat.module';
 
 @Module({
-  imports: [PrismaModule], // <--- THÊM DÒNG NÀY
+  imports: [PrismaModule, ChatModule],
   controllers: [AppointmentsController],
   providers: [AppointmentsService],
   exports: [AppointmentsService],

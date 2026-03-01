@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChatGateway } from '../chat/chat.gateway';
 import {
   CreateAppointmentDto,
   UpdateAppointmentDto,
@@ -21,7 +22,10 @@ dayjs.extend(isSameOrAfter);
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private chatGateway: ChatGateway,
+  ) {}
 
   // ==================================================================
   // 1. LẤY KHUNG GIỜ TRỐNG (CÓ LOGIC HOẠCH ĐỊNH)
@@ -44,41 +48,24 @@ export class AppointmentsService {
       include: { doctor: true },
     });
 
-    // 2. XỬ LÝ TRƯỜNG HỢP KHÔNG CÓ CA TRỰC
+    // 2. XỬ LÝ TRƯỜNG HỢP KHÔNG CÓ CA TRỰC (chưa xếp lịch ngày đó)
     if (shifts.length === 0) {
-      // Tìm "Ca trực cuối cùng" đã được lên lịch của chi nhánh này để xác định biên quy hoạch
-      const lastScheduledShift = await this.prisma.doctorShift.findFirst({
-        where: {
-          room: { branch_id },
-          start_time: { gte: new Date() }
-        },
-        orderBy: { start_time: 'desc' }
-      });
-
-      const maxScheduledDate = lastScheduledShift
-        ? dayjs(lastScheduledShift.start_time).endOf('day')
-        : dayjs(); // Nếu chưa có lịch nào thì biên là hôm nay
-
-      // LOGIC QUAN TRỌNG:
-      // - Nếu ngày chọn > ngày xa nhất đã xếp lịch => Đây là TƯƠNG LAI CHƯA XẾP => Cho phép đặt (tạo slot ảo).
-      // - Nếu ngày chọn <= ngày xa nhất => Đây là NGÀY NGHỈ (đã xếp lịch các ngày quanh đó nhưng chừa ngày này ra) => Chặn.
-
-      if (targetDate.isAfter(maxScheduledDate)) {
-        // ==> TẠO SLOT ẢO (Giờ hành chính 08:00 - 17:00)
-        const defaultStart = targetDate.set('hour', 8).set('minute', 0).toDate();
-        const defaultEnd = targetDate.set('hour', 17).set('minute', 0).toDate();
-
-        shifts = [{
-          id: 'virtual-shift',
-          doctor_id: doctor_id || 'temp-id',
-          start_time: defaultStart,
-          end_time: defaultEnd,
-          doctor: { average_time: 30 } as any
-        } as any];
-      } else {
-        // ==> NGÀY NGHỈ / ĐÃ KÍN LỊCH HOẠCH ĐỊNH
-        return []; // Trả về rỗng để App hiện thông báo "Không có lịch trống"
+      // Ngày trong quá khứ → không có slot
+      if (targetDate.isBefore(dayjs(), 'day')) {
+        return [];
       }
+      // Ngày hôm nay hoặc tương lai nhưng chưa có ca trực → dùng logic backend: tạo slot ảo (08:00–17:00)
+      // để khách vẫn đặt được; createAppointment sẽ xử lý đặt lịch chờ / auto assign.
+      const defaultStart = targetDate.set('hour', 8).set('minute', 0).toDate();
+      const defaultEnd = targetDate.set('hour', 17).set('minute', 0).toDate();
+
+      shifts = [{
+        id: 'virtual-shift',
+        doctor_id: doctor_id || 'temp-id',
+        start_time: defaultStart,
+        end_time: defaultEnd,
+        doctor: { average_time: 30 } as any
+      } as any];
     }
 
     if (!shifts.length) return [];
@@ -308,6 +295,25 @@ export class AppointmentsService {
         changed_by: createdBy,
       },
     });
+
+    // Real-time: thông báo cho lễ tân, bác sĩ, quản lý có lịch hẹn mới
+    try {
+      this.chatGateway.broadcastNewAppointment({
+        branchId: appointment.branch_id ?? undefined,
+        appointment: {
+          id: appointment.id,
+          start_time: appointment.start_time,
+          end_time: appointment.end_time,
+          status: appointment.status,
+          patient: appointment.patient,
+          doctor: appointment.doctor,
+          room: appointment.room,
+          branch: appointment.branch,
+        },
+      });
+    } catch (e) {
+      console.warn('Broadcast new-appointment failed:', e);
+    }
 
     return {
       message: successMessage,

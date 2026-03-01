@@ -76,9 +76,9 @@ export default function HomeScreen() {
         {/* 1. HEADER BRAND */}
         <View style={styles.headerBrand}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: '#1a237e' }}>DYM</Text>
+            <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: '#1a237e' }}>Clinic</Text>
             <View style={{ marginLeft: 8 }}>
-              <Text variant="labelSmall" style={{ color: '#666' }}>Medical Center Vietnam</Text>
+              <Text variant="labelSmall" style={{ color: '#666' }}>Vietnam</Text>
             </View>
           </View>
         </View>

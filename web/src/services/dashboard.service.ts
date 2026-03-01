@@ -5,6 +5,15 @@ export interface AdminStats {
   totalDoctors: number;
   totalAppointments: number;
   totalRevenue: number;
+  todayAppointments?: number;
+  pendingInvoices?: number;
+  totalBranches?: number;
+  totalRooms?: number;
+  totalSpecializations?: number;
+  totalMedications?: number;
+  totalNews?: number;
+  paidInvoices?: number;
+  appointmentByStatus?: Record<string, number>;
 }
 
 export interface AppointmentStats {
@@ -47,6 +56,16 @@ export const dashboardService = {
 
   getDoctorDashboard: async () => {
     const response = await axiosInstance.get('/dashboard/doctor');
+    return response.data;
+  },
+
+  getNotifications: async () => {
+    const response = await axiosInstance.get<{
+      newContactsCount: number;
+      unreadMessagesCount: number;
+      expiringMedications: { id: string; name: string; expiry_date: string; available_qty: number }[];
+      lowStockMedications: { id: string; name: string; available_qty: number }[];
+    }>('/dashboard/notifications');
     return response.data;
   },
 };
