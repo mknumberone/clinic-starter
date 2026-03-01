@@ -38,6 +38,12 @@ import MedicationManagement from './pages/admin/MedicationManagement';
 import AttendanceTracking from './pages/admin/AttendanceTracking';
 import NewsManagement from './pages/admin/NewsManagement';
 import ContactManagement from './pages/admin/ContactManagement';
+import RevenueAnalytics from './pages/admin/analytics/RevenueAnalytics';
+import AppointmentAnalytics from './pages/admin/analytics/AppointmentAnalytics';
+import PatientAnalytics from './pages/admin/analytics/PatientAnalytics';
+import DoctorAnalytics from './pages/admin/analytics/DoctorAnalytics';
+import RevenueReport from './pages/admin/reports/RevenueReport';
+import InventoryReport from './pages/admin/reports/InventoryReport';
 
 // --- DOCTOR PAGES ---
 import DoctorDashboard from './pages/doctor/Dashboard';
@@ -182,6 +188,54 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/analytics/revenue"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <RevenueAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/analytics/appointments"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AppointmentAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/analytics/patients"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <PatientAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/analytics/doctors"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <DoctorAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reports/revenue"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <RevenueReport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reports/inventory"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <InventoryReport />
                 </ProtectedRoute>
               }
             />

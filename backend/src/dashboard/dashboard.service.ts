@@ -421,4 +421,48 @@ export class DashboardService {
       lowStockMedications: lowStockMedications.slice(0, 20),
     };
   }
+
+  /**
+   * Báo cáo kho thuốc: thuốc sắp hết hạn, thuốc tồn thấp.
+   */
+  async getInventoryReport(branchId?: string) {
+    const branches = branchId
+      ? await this.prisma.branch.findMany({ where: { id: branchId } })
+      : await this.prisma.branch.findMany({ where: { is_active: true } });
+    const now = new Date();
+    const expiringLimit = new Date(now);
+    expiringLimit.setDate(expiringLimit.getDate() + EXPIRING_DAYS);
+
+    const expiring: { branchName: string; medicationName: string; expiry_date: string; available_qty: number }[] = [];
+    const lowStock: { branchName: string; medicationName: string; available_qty: number }[] = [];
+
+    for (const branch of branches) {
+      const inventory = await this.inventoryService.getBranchInventory(branch.id);
+      for (const med of inventory as any[]) {
+        const available = med.available_qty ?? 0;
+        if (available > 0 && available < LOW_STOCK_THRESHOLD) {
+          lowStock.push({
+            branchName: branch.name,
+            medicationName: med.name,
+            available_qty: available,
+          });
+        }
+        const batches = med.inventories || [];
+        for (const batch of batches) {
+          const exp = batch.expiry_date ? new Date(batch.expiry_date) : null;
+          const qty = batch.quantity - (batch.pending_quantity || 0);
+          if (exp && exp > now && exp <= expiringLimit && qty > 0) {
+            expiring.push({
+              branchName: branch.name,
+              medicationName: med.name,
+              expiry_date: batch.expiry_date,
+              available_qty: qty,
+            });
+            break;
+          }
+        }
+      }
+    }
+    return { expiring, lowStock };
+  }
 }

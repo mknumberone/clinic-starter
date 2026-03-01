@@ -28,6 +28,7 @@ import { NewsModule } from './news/news.module';
 import { SmsModule } from './sms/sms.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { ContactsModule } from './contacts/contacts.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { ContactsModule } from './contacts/contacts.module';
     SmsModule,
     FirebaseModule,
     ContactsModule,
+    AnalyticsModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'), // Trỏ ra thư mục uploads ở gốc dự án
       serveRoot: '/uploads', // Đường dẫn truy cập: http://localhost:3000/uploads/ten-anh.jpg

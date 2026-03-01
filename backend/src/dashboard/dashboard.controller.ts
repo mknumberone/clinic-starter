@@ -27,10 +27,11 @@ export class DashboardController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.dashboardService.getAppointmentsByDateRange(
-      new Date(startDate),
-      new Date(endDate),
-    );
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    return this.dashboardService.getAppointmentsByDateRange(start, end);
   }
 
   @Get('admin/revenue')
@@ -42,10 +43,11 @@ export class DashboardController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.dashboardService.getRevenueByDateRange(
-      new Date(startDate),
-      new Date(endDate),
-    );
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    return this.dashboardService.getRevenueByDateRange(start, end);
   }
 
   @Get('admin/upcoming-appointments')
@@ -85,5 +87,13 @@ export class DashboardController {
       req.user.role,
       req.user.branch_id,
     );
+  }
+
+  @Get('admin/inventory-report')
+  @ApiOperation({ summary: 'Báo cáo kho thuốc (sắp hết hạn, tồn thấp)' })
+  @ApiQuery({ name: 'branchId', required: false })
+  @ApiResponse({ status: 200, description: 'Báo cáo kho thuốc' })
+  async getInventoryReport(@Query('branchId') branchId?: string) {
+    return this.dashboardService.getInventoryReport(branchId || undefined);
   }
 }

@@ -21,6 +21,7 @@ import {
   MessageOutlined,
   MailOutlined,
   ClockCircleOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { uploadService } from '@/services/upload.service';
@@ -45,6 +46,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [branchLoading, setBranchLoading] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [menuOpenKeys, setMenuOpenKeys] = useState<string[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -64,6 +66,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     '/receptionist/messages'
   ];
   const shouldShowChatWidget = !hideChatWidgetPaths.includes(location.pathname);
+
+  // Mở submenu Thống kê/Báo cáo khi đang ở trang con, cho phép user thu gọn khi click
+  useEffect(() => {
+    if (!location.pathname.startsWith('/admin')) return;
+    const keys: string[] = [];
+    if (location.pathname.includes('/analytics/')) keys.push('analytics');
+    if (location.pathname.includes('/reports/')) keys.push('reports');
+    if (keys.length > 0) {
+      setMenuOpenKeys((prev) => {
+        const next = [...prev];
+        keys.forEach((k) => {
+          if (!next.includes(k)) next.push(k);
+        });
+        return next;
+      });
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     if (token) {
@@ -175,6 +194,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         { key: 'doctors', icon: <TeamOutlined />, label: 'Bác sĩ', onClick: () => navigate('/admin/doctors') },
         { key: 'specializations', icon: <MedicineBoxOutlined />, label: 'Chuyên khoa & Phòng', onClick: () => navigate('/admin/specializations') },
         { key: 'appointments', icon: <CalendarOutlined />, label: 'Lịch hẹn', onClick: () => navigate('/admin/appointments') },
+        {
+          key: 'analytics',
+          icon: <BarChartOutlined />,
+          label: 'Thống kê',
+          children: [
+            { key: 'revenue', label: 'Doanh thu', onClick: () => navigate('/admin/analytics/revenue') },
+            { key: 'analytics-appointments', label: 'Lịch hẹn', onClick: () => navigate('/admin/analytics/appointments') },
+            { key: 'analytics-patients', label: 'Bệnh nhân', onClick: () => navigate('/admin/analytics/patients') },
+            { key: 'analytics-doctors', label: 'Bác sĩ', onClick: () => navigate('/admin/analytics/doctors') },
+          ],
+        },
         { key: 'prescriptions', icon: <FileTextOutlined />, label: 'Đơn thuốc', onClick: () => navigate('/admin/prescriptions') },
         { key: 'invoices', icon: <DollarOutlined />, label: 'Hóa đơn', onClick: () => navigate('/admin/invoices') },
         { key: 'news', icon: <FileTextOutlined />, label: 'Tin tức', onClick: () => navigate('/admin/news') },
@@ -203,7 +233,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           label: 'Theo dõi Chấm công',
           onClick: () => navigate('/admin/attendance'),
         },
-
+        {
+          key: 'reports',
+          icon: <FileTextOutlined />,
+          label: 'Báo cáo',
+          children: [
+            { key: 'report-revenue', label: 'Báo cáo doanh thu', onClick: () => navigate('/admin/reports/revenue') },
+            { key: 'report-inventory', label: 'Báo cáo kho thuốc', onClick: () => navigate('/admin/reports/inventory') },
+          ],
+        },
         {
           key: 'messages',
           icon: <MessageOutlined />,
@@ -350,14 +388,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </div>
 
-        {/* MENU: Màu nền Xanh Đậm #002840 */}
+        {/* MENU: Màu nền Xanh Đậm #002840 — Thống kê & Báo cáo có thể thu gọn */}
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[location.pathname.split('/').pop() || 'dashboard']}
+          openKeys={location.pathname.startsWith('/admin') ? menuOpenKeys : undefined}
+          onOpenChange={setMenuOpenKeys}
+          selectedKeys={[
+            location.pathname.includes('/reports/inventory') ? 'report-inventory' :
+            location.pathname.includes('/reports/revenue') ? 'report-revenue' :
+            location.pathname.includes('/analytics/patients') ? 'analytics-patients' :
+            location.pathname.includes('/analytics/doctors') ? 'analytics-doctors' :
+            location.pathname.includes('/analytics/appointments') ? 'analytics-appointments' :
+            location.pathname.includes('/analytics/revenue') ? 'revenue' :
+            (location.pathname.split('/').pop() || 'dashboard'),
+          ]}
           items={getMenuItems()}
           className="border-r-0 mt-2"
-          style={{ background: '#002840' }} // Màu Sidebar
+          style={{ background: '#002840' }}
         />
       </Sider>
 

@@ -68,4 +68,12 @@ export const dashboardService = {
     }>('/dashboard/notifications');
     return response.data;
   },
+
+  getInventoryReport: async (branchId?: string) => {
+    const response = await axiosInstance.get<{
+      expiring: { branchName: string; medicationName: string; expiry_date: string; available_qty: number }[];
+      lowStock: { branchName: string; medicationName: string; available_qty: number }[];
+    }>('/dashboard/admin/inventory-report', { params: branchId ? { branchId } : {} });
+    return response.data;
+  },
 };
